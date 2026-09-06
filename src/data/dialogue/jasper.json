@@ -1,0 +1,35 @@
+{
+  "name": "Jasper",
+  "nodes": {
+    "start": {
+      "lines": [
+        "Well, howdy! You must be the new owner up at Wildflower Ridge.",
+        "Name's Jasper. I run the General Store down the road in town."
+      ],
+      "choices": [
+        { "text": "Nice to meet you, Jasper!", "next": "friendly" },
+        { "text": "What do you sell?", "next": "shop" }
+      ]
+    },
+    "friendly": {
+      "lines": [
+        "Likewise! Folks round here look out for each other.",
+        "That mare of yours, Star, she's a good one. Keep her fed and brushed and she'll carry you anywhere."
+      ],
+      "end": "met"
+    },
+    "shop": {
+      "lines": [
+        "Feed, tack, seeds, the odd bit of lumber. Everything a ranch needs.",
+        "I'm restocking the shelves this week. Come see me in town once the doors are open."
+      ],
+      "end": "met"
+    },
+    "repeat": {
+      "lines": [
+        "Store's opening soon. Give Star a carrot from me!"
+      ],
+      "end": "repeat"
+    }
+  }
+}
