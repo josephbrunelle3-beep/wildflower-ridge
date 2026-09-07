@@ -35,7 +35,6 @@ Ride from her care menu. Sleep in the house after 6 PM to end the day; the game 
 | `npm run preview` | Serve the production build |
 | `npm test` | Unit tests for the pure systems (Vitest) |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run build:map` | Regenerate `public/assets/maps/ranch.json` from `scripts/build-map.ts` |
 
 Append `?st=1` to the URL to run the game loop on timers instead of requestAnimationFrame
 (keeps it ticking in a hidden tab; handy for automated testing).
@@ -43,7 +42,6 @@ Append `?st=1` to the URL to run the game loop on timers instead of requestAnima
 ## Layout
 
 ```
-scripts/build-map.ts     paints the ranch into Tiled-format JSON (no Tiled app needed)
 src/main.ts              Phaser config and boot
 src/config/              keys, tile catalogue, balance tunables
 src/state/GameState.ts   the single serialisable save state
@@ -52,7 +50,7 @@ src/systems/             Phaser-free logic: time, horse care, quests, saves, eco
 src/entities/            Player, Horse, Npc sprites
 src/scenes/              Boot, Title, Ranch (world), UI (HUD overlay)
 src/ui/                  panels, hotbar, minimap, care menu, dialogue, pause, toasts
-src/gfx/                 placeholder art generated at boot
+src/gfx/                 placeholder art and the ranch map, both generated at boot
 src/data/                quests, items, dialogue JSON
 tests/                   Vitest specs for the systems
 ```

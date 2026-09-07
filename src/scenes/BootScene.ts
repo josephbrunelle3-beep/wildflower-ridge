@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { MAP, SCENE, TEX } from '../config/keys';
 import { DIRS, generatePlaceholders, HORSE_COLS, PERSON_COLS } from '../gfx/PlaceholderTextures';
+import { buildRanchMap } from '../gfx/RanchMap';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -8,12 +9,13 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.tilemapTiledJSON(MAP.RANCH, 'assets/maps/ranch.json');
+    // Nothing to fetch yet: the map and every texture are built in code below.
     // Real art goes here later, e.g.:
     // this.load.spritesheet(TEX.PLAYER, 'assets/sprites/player.png', { frameWidth: 16, frameHeight: 16 });
   }
 
   create(): void {
+    this.cache.tilemap.add(MAP.RANCH, { format: Phaser.Tilemaps.Formats.TILED_JSON, data: buildRanchMap() });
     generatePlaceholders(this);
     this.registerAnimations();
     this.scene.start(SCENE.TITLE);
