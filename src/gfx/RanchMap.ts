@@ -102,9 +102,13 @@ export function buildRanchMap(): RanchMap {
   for (let x = P.x0; x <= P.x1; x++) { setD(x, P.y0, TILE.FENCE_H); setD(x, P.y1, TILE.FENCE_H); }
   for (let y = P.y0; y <= P.y1; y++) { setD(P.x0, y, TILE.FENCE_V); setD(P.x1, y, TILE.FENCE_V); }
   for (const [x, y] of [[P.x0, P.y0], [P.x1, P.y0], [P.x0, P.y1], [P.x1, P.y1]]) setD(x, y, TILE.FENCE_POST);
+  // A two-tile gateway. One tile is not enough: a mounted horse is wider than a single
+  // tile, so a 1-wide gate clips the fence either side and the horse can never get out.
   const GATE_X = 13;
-  setD(GATE_X, P.y1, TILE.GATE);
-  setG(GATE_X, P.y1, TILE.DIRT);
+  for (const gx of [GATE_X, GATE_X + 1]) {
+    setD(gx, P.y1, TILE.GATE);
+    setG(gx, P.y1, TILE.DIRT);
+  }
   addRect('pasture', 'zone', P.x0 + 1, P.y0 + 1, P.x1 - P.x0 - 1, P.y1 - P.y0 - 1);
   setD(5, 4, TILE.TROUGH);
   addPoint('trough', 'interact', 5, 4);
@@ -126,7 +130,7 @@ export function buildRanchMap(): RanchMap {
   addPoint('player', 'spawn', 30, 22);
 
   // --- Paths -----------------------------------------------------------------
-  fillG(GATE_X, 12, GATE_X, 14, TILE.DIRT);
+  fillG(GATE_X, 12, GATE_X + 1, 14, TILE.DIRT);
   fillG(GATE_X, 14, 30, 14, TILE.DIRT);
   fillG(29, 9, 30, 14, TILE.DIRT);
   fillG(30, 14, 30, 27, TILE.DIRT);

@@ -21,7 +21,9 @@ export class Horse extends Phaser.Physics.Arcade.Sprite {
     scene.physics.add.existing(this);
     this.setCollideWorldBounds(true);
     this.setImmovable(true);
-    this.arcadeBody.setSize(18, 10).setOffset(7, 18);
+    // Narrower than a tile (16px) on purpose, so a ridden horse fits through gateways and
+    // one-tile gaps between trees rather than snagging on both sides at once.
+    this.arcadeBody.setSize(14, 10).setOffset(9, 18);
     this.setDepth(100 + this.y);
   }
 
