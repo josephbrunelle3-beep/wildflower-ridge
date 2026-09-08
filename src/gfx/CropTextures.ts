@@ -15,13 +15,18 @@ import { TILE_SIZE } from '../config/tiles';
  *   2  withered stalks
  *   3  seed crate
  *   4  shipping crate
- *   5+ crops, four stages each, in CROPS order (see cropFrame)
+ *   5  weeds
+ *   6  the yard pump
+ *   7  wilt overlay, laid over a thirsty crop
+ *   8+ crops, four stages each, in CROPS order (see cropFrame)
  */
 
 type Ctx = CanvasRenderingContext2D;
 
-export const FARM_FRAME = { SOIL_DRY: 0, SOIL_WET: 1, WITHERED: 2, SEED_CRATE: 3, SHIP_CRATE: 4 } as const;
-const FIRST_CROP_FRAME = 5;
+export const FARM_FRAME = {
+  SOIL_DRY: 0, SOIL_WET: 1, WITHERED: 2, SEED_CRATE: 3, SHIP_CRATE: 4, WEEDS: 5, PUMP: 6, WILT: 7,
+} as const;
+const FIRST_CROP_FRAME = 8;
 const FRAME_COUNT = FIRST_CROP_FRAME + CROPS.length * CROP_STAGES;
 
 /** Frame index for a crop at a given drawn stage (0 = just sown, 3 = ripe). */
@@ -111,6 +116,64 @@ function drawCrop(ctx: Ctx, crop: CropDef, stage: number) {
   rect(ctx, midX - 1, top - 1, 2, 1, crop.leafDark);
 }
 
+/**
+ * Weeds, drawn over whatever is planted so a choked square still shows its crop being
+ * strangled. Rank and sprawling, in a grey-olive nothing else in the set uses, with broad
+ * leaves rather than a crop's neat stalk - the eye should catch these from across the yard.
+ */
+function weeds(ctx: Ctx) {
+  const WEED = '#7d8a3c';
+  const WEED_DARK = '#5b662a';
+  const WEED_LIGHT = '#9aa84e';
+  for (const [x, y, h] of [[2, 8, 7], [5, 5, 9], [9, 6, 8], [13, 9, 6]]) {
+    rect(ctx, x, y, 1, h, WEED);
+    rect(ctx, x, y, 1, 2, WEED_LIGHT);
+    // Broad leaves flopping either side of the stem.
+    rect(ctx, x - 2, y + 3, 2, 1, WEED_DARK);
+    rect(ctx, x + 1, y + 5, 2, 1, WEED_DARK);
+    rect(ctx, x - 1, y + 6, 1, 1, WEED);
+  }
+  // Seed heads: the giveaway that these are weeds and not a crop.
+  for (const [x, y] of [[5, 4], [9, 5], [2, 7]]) {
+    rect(ctx, x, y, 1, 1, '#d6cf6a');
+    rect(ctx, x - 1, y + 1, 3, 1, '#b8b04e');
+  }
+}
+
+/**
+ * The mark of a thirsty square: cracked, sun-baked crust on the soil and a scatter of
+ * dropped yellow leaves. The crop itself is tinted sallow by FarmLayer, so the two together
+ * read as wilting from a distance.
+ */
+function wilt(ctx: Ctx) {
+  // Cracks in the dried-out soil.
+  for (const [x, y, w] of [[1, 4, 5], [8, 6, 6], [3, 11, 4], [10, 13, 5]]) {
+    rect(ctx, x, y, w, 1, '#c9a86a');
+    rect(ctx, x, y + 1, Math.max(1, w - 3), 1, '#8a6a3c');
+  }
+  rect(ctx, 6, 2, 1, 3, '#c9a86a');
+  // Leaves it has already dropped.
+  for (const [x, y] of [[4, 13], [12, 10], [2, 8]]) {
+    rect(ctx, x, y, 2, 1, '#c08a3a');
+    rect(ctx, x, y + 1, 1, 1, '#96682a');
+  }
+}
+
+/** The yard pump: cast iron on a stone base, where the bucket gets refilled. */
+function pump(ctx: Ctx) {
+  shadow(ctx, 8, 15, 5, 2, 0.22);
+  rect(ctx, 4, 12, 9, 3, '#8f8b82');
+  rect(ctx, 4, 12, 9, 1, '#adaa9f');
+  rect(ctx, 7, 4, 3, 9, CRATE.iron);
+  rect(ctx, 7, 4, 1, 9, '#8a8a80');
+  rect(ctx, 6, 3, 5, 2, CRATE.iron);        // head
+  rect(ctx, 10, 5, 3, 1, CRATE.iron);       // spout
+  rect(ctx, 3, 5, 4, 1, '#4f4f48');         // handle
+  rect(ctx, 3, 4, 1, 2, '#4f4f48');
+  rect(ctx, 11, 7, 1, 2, '#5aa3dd');        // a drip, to say what it is for
+  rect(ctx, 2, 15, 12, 1, INK);
+}
+
 function withered(ctx: Ctx) {
   shadow(ctx, 8, 14, 4, 1.5, 0.14);
   for (const [x, y, h] of [[5, 8, 6], [8, 7, 7], [11, 9, 5]]) {
@@ -161,6 +224,9 @@ function makeFarmSheet(): HTMLCanvasElement {
   at(FARM_FRAME.WITHERED, () => withered(ctx));
   at(FARM_FRAME.SEED_CRATE, () => crate(ctx, false));
   at(FARM_FRAME.SHIP_CRATE, () => crate(ctx, true));
+  at(FARM_FRAME.WEEDS, () => weeds(ctx));
+  at(FARM_FRAME.PUMP, () => pump(ctx));
+  at(FARM_FRAME.WILT, () => wilt(ctx));
   CROPS.forEach((crop) => {
     for (let stage = 0; stage < CROP_STAGES; stage++) {
       at(cropFrame(crop.id, stage), () => drawCrop(ctx, crop, stage));

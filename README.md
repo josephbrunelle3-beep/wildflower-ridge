@@ -20,22 +20,33 @@ Open http://localhost:5173.
 | WASD / arrows | Walk (or steer the horse) |
 | Shift | Run / gallop |
 | Space | Jump (mounted, needs pace) |
-| E | Interact, talk, mount menu, dismount |
+| E | Interact, talk, work the garden, mount menu, dismount |
 | 1-8 | Select a tool on the hotbar |
 | Esc | Pause menu (save, quit) |
 
 ### Farming
 
-The kitchen garden is the patch of ground west of the house, between the pond and the path,
-with a seed crate and a shipping crate beside it. Stand at a square and press **E** to work it:
-bare ground gets turned over, tilled soil opens the sowing list, and a ripe row is picked. To
-water, select the **bucket (3)** first.
+West of the house, between the pond and the path, is a fenced farmyard with a gate onto the
+track. Inside are the workable rows, a seed crate, a shipping crate and the pump.
 
-Crops grow by *watered days*, not calendar days — an unwatered row simply waits, so nothing
-dies of neglect. What does kill a crop is the turn of the season: a spring crop caught by
-summer withers and has to be cleared. Tomatoes and corn keep bearing after a picking; carrots
-and timothy grass go straight into the barn as treats and hay for Star, and everything else
-goes in the shipping crate for gold.
+Stand at a square and press **E** to work it: bare ground gets turned over, tilled soil opens
+the sowing list, weeds get pulled, a ripe row is picked. To water, select the **bucket (3)** —
+it holds twelve waterings and refills at the pump. Field work takes real time off the clock,
+so a big garden is a morning's work.
+
+**Crops need looking after.** Growth is counted in *watered days*, not calendar days, so a row
+only comes on when you water it. Miss a morning and it wilts — the soil cracks and the plant
+goes sallow — and a third dry morning kills it where it stands. Weeds sprout on
+their own and choke a square until they are pulled; bare soil left weedy goes back to grass.
+The turn of the season kills anything still standing out of its months. Rain overnight waters
+the whole garden for you, which is the one mercy the valley offers.
+
+Bring a crop all the way in without a single dry or choked day and it comes up a **prize
+crop** — twice the yield. That is the difference between a garden that pays and one that
+merely survives.
+
+Carrots and timothy grass go straight into the barn as treats and hay for Star; everything
+else goes in the shipping crate for gold.
 
 | Crop | Season | Watered days | Packet | Sells for |
 |---|---|---|---|---|
@@ -45,6 +56,9 @@ goes in the shipping crate for gold.
 | Tomatoes | Summer | 7 (regrows in 3) | 90g | 55g |
 | Corn | Summer, Fall | 8 (regrows in 4) | 105g | 70g |
 | Pumpkins | Fall | 9 | 135g | 170g |
+
+Every number above — growth times, prices, how fast a crop dies of thirst, how often weeds
+take hold, the chance of rain — is in `src/config/crops.ts`.
 
 ### Riding
 
@@ -85,7 +99,8 @@ src/entities/            Player, Horse, Npc sprites
 src/scenes/              Boot, Title, Ranch (world), UI (HUD overlay)
 src/ui/                  panels, hotbar, minimap, care menu, seed/shipping menu, dialogue, pause, toasts
 src/gfx/                 placeholder art, the crop sheet and the ranch map, all generated at boot
-src/gfx/FarmLayer.ts     the kitchen garden in the world: soil, crops, crates, [E] handling
+src/gfx/FarmLayer.ts     the farmyard in the world: soil, crops, crates, pump, [E] handling
+src/gfx/FarmYard.ts      fences the yard in and lays the track to its gate
 src/data/                quests, items, dialogue JSON
 tests/                   Vitest specs for the systems
 ```

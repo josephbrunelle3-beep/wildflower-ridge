@@ -32,12 +32,15 @@ describe('SaveSystem', () => {
   it('round-trips the garden, and fills it in for a save made before farming existed', () => {
     const storage = memStorage();
     const s = createNewGame();
-    s.farm.plots['18,21'] = { crop: 'carrot', growth: 2, watered: true, sownDay: 11, withered: false };
+    s.farm.plots['17,21'] = {
+      crop: 'carrot', growth: 2, watered: true, sownDay: 11, withered: false,
+      dryDays: 1, weedy: true, neglect: 2, fallowDays: 0,
+    };
     s.farm.produce.pumpkin = 2;
     s.farm.harvested = 3;
     expect(saveGame(s, storage)).toBe(true);
     const loaded = loadGame(storage)!;
-    expect(loaded.farm.plots['18,21']).toEqual(s.farm.plots['18,21']);
+    expect(loaded.farm.plots['17,21']).toEqual(s.farm.plots['17,21']);
     expect(loaded.farm.produce.pumpkin).toBe(2);
     expect(loaded.farm.harvested).toBe(3);
 
@@ -45,6 +48,14 @@ describe('SaveSystem', () => {
     const old = loadGame(storage)!;
     expect(old.farm.plots).toEqual({});
     expect(old.farm.seeds.carrot).toBe(3);
+
+    // A save from before crops could wilt still loads, with the care fields filled in.
+    storage.setItem(SAVE_KEY, JSON.stringify({
+      version: 1,
+      farm: { plots: { '17,21': { crop: 'carrot', growth: 1, watered: false, sownDay: 3, withered: false } } },
+    }));
+    const preCare = loadGame(storage)!.farm.plots['17,21'];
+    expect(preCare).toMatchObject({ crop: 'carrot', growth: 1, dryDays: 0, weedy: false, neglect: 0 });
   });
 
   it('returns null with no save or corrupt data', () => {

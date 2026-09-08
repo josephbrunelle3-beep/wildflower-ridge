@@ -80,14 +80,48 @@ export const CROP_BY_ID: Record<string, CropDef> = Object.fromEntries(CROPS.map(
 export const CROP_STAGES = 4;
 
 export const FARM = {
-  /** The kitchen garden, in tile coordinates, inclusive. Kept clear of the map's trees. */
-  plot: { x0: 18, y0: 21, x1: 23, y1: 24 },
-  /** Where the seed crate and the shipping crate stand, in tiles. */
-  seedCrate: { x: 17, y: 21 },
-  shipCrate: { x: 17, y: 23 },
+  /**
+   * The farmyard: a fenced square west of the house, with the pond at its back. The fence
+   * ring runs around `yard`; `plot` is the workable ground inside it, and the east column
+   * of the yard is left for the crates and the pump.
+   */
+  yard: { x0: 16, y0: 20, x1: 24, y1: 25 },
+  plot: { x0: 17, y0: 21, x1: 22, y1: 24 },
+  /** Two tiles wide, like the pasture gate - a mounted horse is wider than one tile. */
+  gate: { x: 24, y0: 23, y1: 24 },
+  /** The track from the gate east to the house path. */
+  pathRow: { y: 23, x0: 25, x1: 30 },
+  seedCrate: { x: 23, y: 21 },
+  pump: { x: 23, y: 22 },
+  shipCrate: { x: 23, y: 23 },
+
   /** Seeds are sold by the packet. */
   seedsPerPacket: 3,
-  /** A crop left unwatered does not die - it just stops. Cosy game, forgiving garden. */
+
+  care: {
+    /**
+     * A dry crop wilts the first morning it is missed and dies on the third. The window is
+     * deliberately wide enough to survive one forgotten day and narrow enough to matter.
+     */
+    dieAfterDryDays: 3,
+    /** Weeds choke a square: nothing grows there until they are pulled. */
+    weedChancePlanted: 0.12,
+    weedChanceBare: 0.28,
+    /** Bare soil left weedy this long goes back to wild grass. */
+    weedsReclaimAfter: 4,
+    /** A crop that never went dry or weedy comes up prize-worthy. */
+    prizeMultiplier: 2,
+    /** Waterings the bucket holds before it needs refilling at the pump. */
+    bucketCapacity: 12,
+  },
+
+  /** Field work costs daylight. These are the minutes each action puts on the clock. */
+  minutes: { till: 10, sow: 5, water: 2, weed: 4, harvest: 3, clear: 5 },
+
+  /** Chance of overnight rain per season, which waters the whole garden for you. */
+  rainChance: [0.3, 0.18, 0.24, 0.12],
+
+  /** Out-of-season crops wither where they stand. */
   witherOutOfSeason: true,
 } as const;
 
@@ -106,8 +140,4 @@ export function inSeason(crop: CropDef, season: number): boolean {
 /** "Spring · Fall" - the seasons a packet is good for, for the seed crate listing. */
 export function seedPacketLabel(crop: CropDef): string {
   return crop.seasons.map((s) => SEASON_NAMES[s]).join(' · ');
-}
-
-export function seedsFor(season: number): CropDef[] {
-  return CROPS.filter((c) => inSeason(c, season));
 }

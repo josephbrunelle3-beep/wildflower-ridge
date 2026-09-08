@@ -66,7 +66,8 @@ export class Hotbar {
       }
       this.icons[i].setScale(i === sel ? 2.3 : 2);
       const id = HOTBAR[i];
-      this.counts[i].setText(id === 'carrot' ? `${G.state.inventory.carrots}` : '');
+      const count = id === 'carrot' ? G.state.inventory.carrots : id === 'bucket' ? G.state.farm.water : null;
+      this.counts[i].setText(count === null ? '' : `${count}`);
     }
     const item = ITEMS.find((it) => it.id === HOTBAR[sel]);
     this.label.setText(item ? `${item.name} — ${item.hint}` : '');

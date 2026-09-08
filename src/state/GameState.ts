@@ -1,4 +1,5 @@
 import { BALANCE } from '../config/balance';
+import { FARM } from '../config/crops';
 
 export const SEASONS = ['Spring', 'Summer', 'Fall', 'Winter'] as const;
 export type Facing = 'down' | 'left' | 'right' | 'up';
@@ -46,8 +47,16 @@ export interface PlotState {
   watered: boolean;
   /** Absolute day the current crop was sown, or -1. */
   sownDay: number;
-  /** True once a crop has been caught out by the turn of the season. */
+  /** Dead: caught by the turn of the season, or left dry too long. */
   withered: boolean;
+  /** Mornings in a row this square has come up dry. 0 while it is being watered. */
+  dryDays: number;
+  /** Weeds have taken the square; nothing grows until they are pulled. */
+  weedy: boolean;
+  /** Days this crop spent dry or choked. Zero at harvest earns a prize crop. */
+  neglect: number;
+  /** Days the square has stood bare and weedy, after which the grass takes it back. */
+  fallowDays: number;
 }
 
 export interface FarmState {
@@ -59,6 +68,12 @@ export interface FarmState {
   produce: Record<string, number>;
   /** Lifetime count of crops harvested, for the quest and for flavour. */
   harvested: number;
+  /** Prize crops raised without a single dry or weedy day. */
+  prizes: number;
+  /** Waterings left in the bucket. Refilled at the pump in the yard. */
+  water: number;
+  /** Did it rain last night? Set each morning; the garden waters itself when it did. */
+  rained: boolean;
 }
 
 export interface PlayerState {
@@ -105,7 +120,15 @@ export function createNewGame(): GameState {
     time: { year: 1, season: 0, day: 12, minutes: 18 * 60 + 40 },
     gold: BALANCE.startGold,
     inventory: { carrots: BALANCE.startCarrots, hay: 0 },
-    farm: { plots: {}, seeds: { carrot: 3 }, produce: {}, harvested: 0 },
+    farm: {
+      plots: {},
+      seeds: { carrot: 3 },
+      produce: {},
+      harvested: 0,
+      prizes: 0,
+      water: FARM.care.bucketCapacity,
+      rained: false,
+    },
     quests: {},
     flags: {},
     selectedSlot: 4,

@@ -1,15 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../src/config/balance';
-import { CROP_BY_ID, FALL, FARM, SPRING, SUMMER } from '../src/config/crops';
+import { CROP_BY_ID, FALL, FARM, SPRING, SUMMER, WINTER } from '../src/config/crops';
 import { createNewGame } from '../src/state/GameState';
 import {
-  advanceDay, buySeeds, clear, dayReportMessage, growthStage, harvest, isRipe, plant, plotAt,
-  produceValue, seedPacketCost, sellProduce, stageOf, till, water,
+  advanceDay, buySeeds, clear, dayReportMessage, daysToDeath, growthStage, harvest, isRipe,
+  isWilting, plant, plotAt, produceValue, pullWeeds, refillBucket, rollRain, seedPacketCost,
+  sellProduce, stageOf, till, water,
 } from '../src/systems/FarmingSystem';
 
 const P = FARM.plot;
 const X: number = P.x0;
 const Y: number = P.y0;
+
+/** A night with no rain and no weeds, so growth tests only measure watering. */
+const night = (s: ReturnType<typeof createNewGame>, days = 1) =>
+  advanceDay(s, days, { rain: false, random: () => 1 });
 
 /** Till, sow and water-through a crop to ripeness. */
 const grow = (state: ReturnType<typeof createNewGame>, cropId: string, x: number = X, y: number = Y) => {
@@ -18,7 +23,7 @@ const grow = (state: ReturnType<typeof createNewGame>, cropId: string, x: number
   const days = CROP_BY_ID[cropId].days;
   for (let d = 0; d < days; d++) {
     water(state, x, y);
-    advanceDay(state);
+    night(state);
   }
 };
 
@@ -48,12 +53,12 @@ describe('FarmingSystem', () => {
     const s = createNewGame();
     till(s, X, Y);
     plant(s, X, Y, 'carrot');
-    advanceDay(s);
+    night(s);
     expect(plotAt(s, X, Y)!.growth).toBe(0);
 
     expect(water(s, X, Y).ok).toBe(true);
     expect(water(s, X, Y).ok).toBe(false); // already watered today
-    advanceDay(s);
+    night(s);
     expect(plotAt(s, X, Y)!.growth).toBe(1);
     expect(plotAt(s, X, Y)!.watered).toBe(false);
   });
@@ -63,14 +68,14 @@ describe('FarmingSystem', () => {
     till(s, X, Y);
     plant(s, X, Y, 'carrot');
     const days = CROP_BY_ID.carrot.days;
-    let report = advanceDay(s);
+    let report = night(s);
     for (let d = 1; d < days; d++) {
       water(s, X, Y);
-      report = advanceDay(s);
+      report = night(s);
     }
     expect(isRipe(plotAt(s, X, Y))).toBe(false);
     water(s, X, Y);
-    report = advanceDay(s);
+    report = night(s);
     expect(isRipe(plotAt(s, X, Y))).toBe(true);
     expect(report.ripened).toBe(1);
     expect(dayReportMessage(report)).toContain('ready to pick');
@@ -81,9 +86,13 @@ describe('FarmingSystem', () => {
     const s = createNewGame();
     const before = s.inventory.carrots;
     grow(s, 'carrot');
-    expect(harvest(s, X, Y).ok).toBe(true);
-    expect(s.inventory.carrots).toBe(before + 1);
+    const r = harvest(s, X, Y);
+    expect(r.ok).toBe(true);
+    // Watered every day, so it comes up a prize crop: double the yield.
+    expect(r.message).toContain('Prize');
+    expect(s.inventory.carrots).toBe(before + FARM.care.prizeMultiplier);
     expect(s.farm.harvested).toBe(1);
+    expect(s.farm.prizes).toBe(1);
     expect(stageOf(s, X, Y)).toBe('tilled');
   });
 
@@ -95,10 +104,12 @@ describe('FarmingSystem', () => {
     grow(s, 'timothy');
     expect(harvest(s, X, Y).ok).toBe(true);
     expect(s.inventory.hay).toBe(BALANCE.maxHay);
+    // The prize bale that would not fit in the barn goes to the crate instead of vanishing.
+    expect(s.farm.produce.timothy).toBe(FARM.care.prizeMultiplier - 1);
 
     grow(s, 'timothy', X + 1, Y);
     expect(harvest(s, X + 1, Y).ok).toBe(true);
-    expect(s.farm.produce.timothy).toBe(1);
+    expect(s.farm.produce.timothy).toBe(FARM.care.prizeMultiplier * 2 - 1);
   });
 
   it('a regrowing crop stays in the ground and comes back', () => {
@@ -112,7 +123,7 @@ describe('FarmingSystem', () => {
     expect(plotAt(s, X, Y)!.growth).toBe(days - regrowDays!);
     for (let d = 0; d < regrowDays!; d++) {
       water(s, X, Y);
-      advanceDay(s);
+      night(s);
     }
     expect(isRipe(plotAt(s, X, Y))).toBe(true);
   });
@@ -133,7 +144,7 @@ describe('FarmingSystem', () => {
     till(s, X, Y);
     expect(plant(s, X, Y, 'sweetpea').ok).toBe(true);
     s.time.season = SUMMER;
-    const report = advanceDay(s);
+    const report = night(s);
     expect(report.withered).toBe(1);
     expect(stageOf(s, X, Y)).toBe('withered');
     expect(water(s, X, Y).ok).toBe(false);
@@ -160,9 +171,143 @@ describe('FarmingSystem', () => {
     const gold = s.gold;
     grow(s, 'pumpkin');
     harvest(s, X, Y);
-    expect(produceValue(s)).toBe(CROP_BY_ID.pumpkin.sellPrice);
+    const value = CROP_BY_ID.pumpkin.sellPrice * FARM.care.prizeMultiplier;
+    expect(produceValue(s)).toBe(value);
     expect(sellProduce(s).ok).toBe(true);
-    expect(s.gold).toBe(gold + CROP_BY_ID.pumpkin.sellPrice);
+    expect(s.gold).toBe(gold + value);
     expect(sellProduce(s).ok).toBe(false);
+  });
+
+  it('charges the day for the work: every action costs minutes', () => {
+    const s = createNewGame();
+    expect(till(s, X, Y).minutes).toBe(FARM.minutes.till);
+    expect(plant(s, X, Y, 'carrot').minutes).toBe(FARM.minutes.sow);
+    expect(water(s, X, Y).minutes).toBe(FARM.minutes.water);
+  });
+});
+
+describe('FarmingSystem care', () => {
+  const sown = (cropId = 'carrot') => {
+    const s = createNewGame();
+    s.farm.seeds[cropId] = 3;
+    till(s, X, Y);
+    plant(s, X, Y, cropId);
+    return s;
+  };
+
+  it('wilts a crop the first morning it is missed and kills it on the third', () => {
+    const s = sown();
+    expect(isWilting(plotAt(s, X, Y))).toBe(false);
+
+    const first = night(s);
+    expect(first.wilting).toBe(1);
+    expect(isWilting(plotAt(s, X, Y))).toBe(true);
+    expect(daysToDeath(plotAt(s, X, Y)!)).toBe(FARM.care.dieAfterDryDays - 1);
+    expect(stageOf(s, X, Y)).toBe('thirsty');
+
+    night(s);
+    expect(plotAt(s, X, Y)!.withered).toBe(false);
+    const third = night(s);
+    expect(third.died).toBe(1);
+    expect(stageOf(s, X, Y)).toBe('withered');
+    expect(dayReportMessage(third)).toContain('died of thirst');
+  });
+
+  it('watering rescues a wilting crop and resets the clock on it', () => {
+    const s = sown();
+    night(s);
+    expect(isWilting(plotAt(s, X, Y))).toBe(true);
+    const r = water(s, X, Y);
+    expect(r.ok).toBe(true);
+    expect(r.message).toContain('pull through');
+    expect(plotAt(s, X, Y)!.dryDays).toBe(0);
+    night(s);
+    expect(plotAt(s, X, Y)!.growth).toBe(1);
+    expect(isWilting(plotAt(s, X, Y))).toBe(false); // saved, and back on the growing clock
+    // But the missed morning is remembered: no prize for this one.
+    expect(plotAt(s, X, Y)!.neglect).toBe(1);
+  });
+
+  it('a neglected crop still grows but loses its prize', () => {
+    const s = sown();
+    night(s);                       // one dry morning: neglect
+    const days = CROP_BY_ID.carrot.days;
+    for (let d = 0; d < days; d++) {
+      water(s, X, Y);
+      night(s);
+    }
+    const before = s.inventory.carrots;
+    const r = harvest(s, X, Y);
+    expect(r.ok).toBe(true);
+    expect(r.message).not.toContain('Prize');
+    expect(s.inventory.carrots).toBe(before + 1);
+    expect(s.farm.prizes).toBe(0);
+  });
+
+  it('rain waters the whole garden overnight', () => {
+    const s = sown();
+    till(s, X + 1, Y);
+    plant(s, X + 1, Y, 'carrot');
+    const report = advanceDay(s, 1, { rain: true, random: () => 1 });
+    expect(report.rained).toBe(true);
+    expect(report.grown).toBe(2);
+    expect(plotAt(s, X, Y)!.growth).toBe(1);
+    expect(plotAt(s, X + 1, Y)!.growth).toBe(1);
+    expect(s.farm.rained).toBe(true);
+    expect(dayReportMessage(report)).toContain('Rain overnight');
+  });
+
+  it('weeds choke a square until they are pulled', () => {
+    const s = sown();
+    // random() = 0 makes every weed roll succeed.
+    const report = advanceDay(s, 1, { rain: true, random: () => 0 });
+    expect(report.weedy).toBe(1);
+    expect(stageOf(s, X, Y)).toBe('weedy');
+
+    const growth = plotAt(s, X, Y)!.growth;
+    expect(water(s, X, Y).ok).toBe(false);       // the weeds would drink it
+    advanceDay(s, 1, { rain: true, random: () => 1 });
+    expect(plotAt(s, X, Y)!.growth).toBe(growth); // choked: no growth even in the rain
+
+    expect(pullWeeds(s, X, Y).ok).toBe(true);
+    expect(stageOf(s, X, Y)).toBe('growing');
+    advanceDay(s, 1, { rain: true, random: () => 1 });
+    expect(plotAt(s, X, Y)!.growth).toBe(growth + 1);
+  });
+
+  it('bare soil left weedy goes back to grass', () => {
+    const s = createNewGame();
+    till(s, X, Y);
+    advanceDay(s, 1, { rain: false, random: () => 0 });   // weeds move in
+    expect(stageOf(s, X, Y)).toBe('weedy');
+    const report = advanceDay(s, FARM.care.weedsReclaimAfter, { rain: false, random: () => 1 });
+    expect(report.reclaimed).toBe(1);
+    expect(stageOf(s, X, Y)).toBe('wild');
+  });
+
+  it('the bucket runs dry and refills at the pump', () => {
+    const s = sown();
+    s.farm.water = 1;
+    expect(water(s, X, Y).ok).toBe(true);
+    expect(s.farm.water).toBe(0);
+
+    till(s, X + 1, Y);
+    plant(s, X + 1, Y, 'carrot');
+    const dry = water(s, X + 1, Y);
+    expect(dry.ok).toBe(false);
+    expect(dry.message).toContain('pump');
+
+    expect(refillBucket(s).ok).toBe(true);
+    expect(s.farm.water).toBe(FARM.care.bucketCapacity);
+    expect(refillBucket(s).ok).toBe(false);
+    expect(water(s, X + 1, Y).ok).toBe(true);
+  });
+
+  it('rolls rain by season', () => {
+    expect(rollRain(SPRING, () => 0)).toBe(true);
+    expect(rollRain(SPRING, () => 0.99)).toBe(false);
+    // Winter is the driest month on the ridge.
+    expect(rollRain(WINTER, () => 0.2)).toBe(false);
+    expect(rollRain(SUMMER, () => 0.2)).toBe(false);
   });
 });

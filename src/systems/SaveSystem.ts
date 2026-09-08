@@ -1,4 +1,10 @@
-import { createNewGame, SAVE_VERSION, type GameState } from '../state/GameState';
+import { createNewGame, SAVE_VERSION, type GameState, type PlotState } from '../state/GameState';
+
+/** Defaults for a garden square, so older saves gain the care fields on load. */
+const FRESH_PLOT: PlotState = {
+  crop: null, growth: 0, watered: false, sownDay: -1, withered: false,
+  dryDays: 0, weedy: false, neglect: 0, fallowDays: 0,
+};
 
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -76,7 +82,10 @@ function migrate(parsed: Partial<GameState> & { version?: number }): GameState {
     farm: {
       ...fresh.farm,
       ...(parsed.farm ?? {}),
-      plots: { ...(parsed.farm?.plots ?? {}) },
+      // Squares saved before crops could wilt or go weedy need the care fields filling in.
+      plots: Object.fromEntries(
+        Object.entries(parsed.farm?.plots ?? {}).map(([key, plot]) => [key, { ...FRESH_PLOT, ...plot }]),
+      ),
       seeds: { ...(parsed.farm?.seeds ?? fresh.farm.seeds) },
       produce: { ...(parsed.farm?.produce ?? {}) },
     },

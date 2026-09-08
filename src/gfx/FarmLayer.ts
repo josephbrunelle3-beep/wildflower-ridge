@@ -7,21 +7,27 @@ import { G } from '../core/Session';
 import { selectedItem } from '../systems/HorseCareSystem';
 import type { InteractionSystem } from '../systems/InteractionSystem';
 import {
-  buySeeds, clear, cropOf, growthStage, harvest, plantableSeeds, plant, plotAt, plotKey,
-  produceCount, produceValue, seedPacketCost, sellProduce, stageOf, till, water,
+  buySeeds, clear, cropOf, daysToDeath, growthStage, harvest, isWilting, plantableSeeds, plant,
+  plotAt, plotKey, produceCount, produceValue, pullWeeds, refillBucket, seedPacketCost, sellProduce,
+  stageOf, till, water, type FarmResult,
 } from '../systems/FarmingSystem';
 import { FARM_FRAME, cropFrame, generateFarmTextures } from './CropTextures';
+import { buildFarmYard } from './FarmYard';
 import type { ShopRow, ShopSpec } from '../ui/ShopMenu';
 
 const SOIL_DEPTH = 2;
 const PLANT_DEPTH = 3;
+const OVERLAY_DEPTH = 4;
+
+/** A thirsty crop goes sallow, then bleached, before it dies. */
+const WILT_TINTS = [0xffffff, 0xd8c07e, 0xb49a62];
 
 const toast = (text: string) => bus.emit(EV.TOAST, text);
 
 /**
- * The kitchen garden in the world: soil and crop sprites over the ground layer, one
- * interactable per square, and the two crates. All the rules live in
- * `systems/FarmingSystem`; this class only draws them and turns an [E] into a call.
+ * The farmyard in the world: the fence and track, soil and crop sprites, one interactable
+ * per square, the crates and the pump. All the rules live in `systems/FarmingSystem`; this
+ * class draws them and turns an [E] into a call.
  */
 export class FarmLayer {
   readonly solids: Phaser.Physics.Arcade.StaticGroup;
@@ -29,12 +35,19 @@ export class FarmLayer {
   private readonly decor: Phaser.Tilemaps.TilemapLayer;
   private readonly soil = new Map<string, Phaser.GameObjects.Image>();
   private readonly plants = new Map<string, Phaser.GameObjects.Image>();
+  private readonly overlays = new Map<string, Phaser.GameObjects.Image>();
   private readonly unsubs: (() => void)[] = [];
 
-  constructor(scene: Phaser.Scene, decor: Phaser.Tilemaps.TilemapLayer, interactions: InteractionSystem) {
+  constructor(
+    scene: Phaser.Scene,
+    ground: Phaser.Tilemaps.TilemapLayer,
+    decor: Phaser.Tilemaps.TilemapLayer,
+    interactions: InteractionSystem,
+  ) {
     this.scene = scene;
     this.decor = decor;
     generateFarmTextures(scene);
+    buildFarmYard(ground, decor);
     this.solids = scene.physics.add.staticGroup();
 
     const p = FARM.plot;
@@ -50,13 +63,21 @@ export class FarmLayer {
       }
     }
 
-    this.addCrate(FARM.seedCrate.x, FARM.seedCrate.y, FARM_FRAME.SEED_CRATE, interactions, {
+    this.addFixture(FARM.seedCrate.x, FARM.seedCrate.y, FARM_FRAME.SEED_CRATE, interactions, {
       prompt: () => '[E] Seed crate',
       interact: () => bus.emit(EV.SHOP_OPEN, this.seedShop()),
     });
-    this.addCrate(FARM.shipCrate.x, FARM.shipCrate.y, FARM_FRAME.SHIP_CRATE, interactions, {
+    this.addFixture(FARM.shipCrate.x, FARM.shipCrate.y, FARM_FRAME.SHIP_CRATE, interactions, {
       prompt: () => '[E] Shipping crate',
       interact: () => bus.emit(EV.SHOP_OPEN, this.shipShop()),
+    });
+    this.addFixture(FARM.pump.x, FARM.pump.y, FARM_FRAME.PUMP, interactions, {
+      prompt: () => `[E] Pump  ·  bucket ${G.state.farm.water}/${FARM.care.bucketCapacity}`,
+      interact: () => {
+        const result = refillBucket(G.state);
+        toast(result.message);
+        if (result.ok) bus.emit(EV.INVENTORY_CHANGED);
+      },
     });
 
     this.unsubs.push(bus.on(EV.FARM_CHANGED, () => this.refresh()));
@@ -64,7 +85,7 @@ export class FarmLayer {
     this.refresh();
   }
 
-  /** Redraw every tilled square from state. Cheap: the plot is a couple of dozen tiles. */
+  /** Redraw every square from state. Cheap: the plot is a couple of dozen tiles. */
   refresh(): void {
     const p = FARM.plot;
     for (let ty = p.y0; ty <= p.y1; ty++) {
@@ -75,10 +96,10 @@ export class FarmLayer {
   destroy(): void {
     this.unsubs.forEach((u) => u());
     this.unsubs.length = 0;
-    this.soil.forEach((i) => i.destroy());
-    this.plants.forEach((i) => i.destroy());
-    this.soil.clear();
-    this.plants.clear();
+    for (const map of [this.soil, this.plants, this.overlays]) {
+      map.forEach((i) => i.destroy());
+      map.clear();
+    }
   }
 
   // --- Drawing ---------------------------------------------------------------
@@ -87,10 +108,7 @@ export class FarmLayer {
     const key = plotKey(tx, ty);
     const plotState = plotAt(G.state, tx, ty);
     if (!plotState) {
-      this.soil.get(key)?.destroy();
-      this.plants.get(key)?.destroy();
-      this.soil.delete(key);
-      this.plants.delete(key);
+      this.clearTile(key);
       return;
     }
 
@@ -100,28 +118,54 @@ export class FarmLayer {
 
     const x = tx * TILE_SIZE + TILE_SIZE / 2;
     const y = ty * TILE_SIZE + TILE_SIZE / 2;
-    const frame = plotState.watered ? FARM_FRAME.SOIL_WET : FARM_FRAME.SOIL_DRY;
-    const soil = this.soil.get(key) ?? this.scene.add.image(x, y, TEX.FARM, frame).setDepth(SOIL_DEPTH);
-    soil.setFrame(frame);
-    this.soil.set(key, soil);
+    this.setImage(this.soil, key, x, y, plotState.watered ? FARM_FRAME.SOIL_WET : FARM_FRAME.SOIL_DRY, SOIL_DEPTH);
 
     const plantFrame = plotState.withered
       ? FARM_FRAME.WITHERED
       : plotState.crop
         ? cropFrame(plotState.crop, growthStage(plotState))
         : -1;
-    let plant = this.plants.get(key);
-    if (plantFrame < 0) {
-      plant?.destroy();
-      this.plants.delete(key);
-      return;
-    }
-    plant = plant ?? this.scene.add.image(x, y, TEX.FARM, plantFrame).setDepth(PLANT_DEPTH);
-    plant.setFrame(plantFrame);
-    this.plants.set(key, plant);
+    const plant = this.setImage(this.plants, key, x, y, plantFrame, PLANT_DEPTH);
+    // A wilting crop is tinted rather than replaced, so you can still see what is planted
+    // while it is in trouble - and how much trouble it is in.
+    plant?.setTint(WILT_TINTS[Math.min(plotState.dryDays, WILT_TINTS.length - 1)]);
+
+    // Weeds and the dry crust lie over the crop, never instead of it.
+    const overlay = plotState.weedy ? FARM_FRAME.WEEDS : isWilting(plotState) ? FARM_FRAME.WILT : -1;
+    this.setImage(this.overlays, key, x, y, overlay, OVERLAY_DEPTH);
   }
 
-  private addCrate(
+  private setImage(
+    store: Map<string, Phaser.GameObjects.Image>,
+    key: string,
+    x: number,
+    y: number,
+    frame: number,
+    depth: number,
+  ): Phaser.GameObjects.Image | null {
+    const existing = store.get(key);
+    if (frame < 0) {
+      existing?.destroy();
+      store.delete(key);
+      return null;
+    }
+    if (existing) {
+      existing.setFrame(frame);
+      return existing;
+    }
+    const image = this.scene.add.image(x, y, TEX.FARM, frame).setDepth(depth);
+    store.set(key, image);
+    return image;
+  }
+
+  private clearTile(key: string): void {
+    for (const map of [this.soil, this.plants, this.overlays]) {
+      map.get(key)?.destroy();
+      map.delete(key);
+    }
+  }
+
+  private addFixture(
     tx: number,
     ty: number,
     frame: number,
@@ -132,8 +176,9 @@ export class FarmLayer {
     const y = ty * TILE_SIZE + TILE_SIZE / 2;
     const image = this.solids.create(x, y, TEX.FARM, frame) as Phaser.Physics.Arcade.Sprite;
     image.setDepth(100 + y);
-    (image.body as Phaser.Physics.Arcade.StaticBody).setSize(14, 10).setOffset(1, 5);
-    (image.body as Phaser.Physics.Arcade.StaticBody).updateFromGameObject();
+    const body = image.body as Phaser.Physics.Arcade.StaticBody;
+    body.setSize(14, 10).setOffset(1, 5);
+    body.updateFromGameObject();
     interactions.add({ x, y, radius: 20, ...def });
   }
 
@@ -141,27 +186,43 @@ export class FarmLayer {
 
   private promptFor(tx: number, ty: number): string {
     const state = G.state;
+    const plotState = plotAt(state, tx, ty);
     switch (stageOf(state, tx, ty)) {
       case 'wild':
         return '[E] Till the soil';
       case 'tilled':
         return plantableSeeds(state).length ? '[E] Sow seed' : '[E] Bare soil — buy seed at the crate';
+      case 'weedy':
+        return '[E] Pull the weeds';
       case 'withered':
-        return '[E] Clear dead stalks';
+        return '[E] Clear the dead crop';
       case 'ripe': {
-        const crop = cropOf(plotAt(state, tx, ty));
-        return `[E] Harvest ${crop?.name.toLowerCase() ?? 'crop'}`;
+        const crop = cropOf(plotState);
+        return `[E] Harvest ${crop?.name.toLowerCase() ?? 'crop'}${plotState?.neglect === 0 ? ' (prize crop!)' : ''}`;
+      }
+      case 'thirsty': {
+        const left = daysToDeath(plotState!);
+        const urgency = left <= 1 ? 'dying' : 'wilting';
+        return this.canWater()
+          ? `[E] Water the ${urgency} ${cropOf(plotState)!.name.toLowerCase()} — ${left} ${left === 1 ? 'day' : 'days'} left`
+          : `${cropOf(plotState)!.name}: ${urgency}! ${this.waterHint()}`;
       }
       default: {
-        const plotState = plotAt(state, tx, ty)!;
         const crop = cropOf(plotState)!;
-        const left = Math.max(1, crop.days - plotState.growth);
-        if (plotState.watered) return `${crop.name} · watered · ${left} ${left === 1 ? 'day' : 'days'} to go`;
-        return selectedItem(state) === 'bucket'
-          ? `[E] Water the ${crop.name.toLowerCase()}`
-          : `${crop.name}: dry — select the bucket (3)`;
+        const left = Math.max(1, crop.days - plotState!.growth);
+        if (plotState!.watered) return `${crop.name} · watered · ${left} ${left === 1 ? 'day' : 'days'} to go`;
+        return this.canWater() ? `[E] Water the ${crop.name.toLowerCase()}` : `${crop.name}: dry — ${this.waterHint()}`;
       }
     }
+  }
+
+  private canWater(): boolean {
+    return selectedItem(G.state) === 'bucket' && G.state.farm.water > 0;
+  }
+
+  private waterHint(): string {
+    if (selectedItem(G.state) !== 'bucket') return 'select the bucket (3)';
+    return 'the bucket is empty, refill at the pump';
   }
 
   private interactWith(tx: number, ty: number): void {
@@ -172,6 +233,9 @@ export class FarmLayer {
         break;
       case 'tilled':
         this.openSowMenu(tx, ty);
+        break;
+      case 'weedy':
+        this.apply(pullWeeds(state, tx, ty));
         break;
       case 'withered':
         this.apply(clear(state, tx, ty));
@@ -187,14 +251,19 @@ export class FarmLayer {
           toast('Select the bucket (3) to water the garden.');
           return;
         }
-        this.apply(water(state, tx, ty));
+        const result = water(state, tx, ty);
+        this.apply(result);
+        if (result.ok) bus.emit(EV.INVENTORY_CHANGED);
       }
     }
   }
 
-  private apply(result: { ok: boolean; message: string }): void {
+  /** Toast the outcome, redraw, and put the time the work took on the clock. */
+  private apply(result: FarmResult): void {
     toast(result.message);
-    if (result.ok) bus.emit(EV.FARM_CHANGED);
+    if (!result.ok) return;
+    bus.emit(EV.FARM_CHANGED);
+    if (result.minutes) bus.emit(EV.TIME_SPEND, result.minutes);
   }
 
   // --- Menus -----------------------------------------------------------------
@@ -279,9 +348,10 @@ export class FarmLayer {
           return false;
         },
       });
+      const prizes = state.farm.prizes > 0 ? `  ·  ${state.farm.prizes} prize` : '';
       return {
         title: 'Shipping crate',
-        subtitle: `${produceCount(state)} crops waiting  ·  ${state.gold.toLocaleString('en-US')}g in the tin`,
+        subtitle: `${produceCount(state)} crops waiting  ·  ${state.gold.toLocaleString('en-US')}g in the tin${prizes}`,
         rows,
         refresh: build,
       };
