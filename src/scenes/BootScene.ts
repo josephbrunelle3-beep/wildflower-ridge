@@ -5,6 +5,7 @@ import {
   FACINGS, GAITS, HORSE_FRAME_H, HORSE_FRAME_W, JUMP_FRAME_H, JUMP_FRAME_W,
   horseAnimKey, horseFrames, jumpAnimKey, jumpFrames, type Gait, type HorseSheet,
 } from '../config/sprites';
+import { generateFarmTextures } from '../gfx/CropTextures';
 import { DIRS, generatePlaceholders, PERSON_COLS } from '../gfx/PlaceholderTextures';
 import { buildRanchMap } from '../gfx/RanchMap';
 
@@ -36,6 +37,7 @@ export class BootScene extends Phaser.Scene {
   create(): void {
     this.cache.tilemap.add(MAP.RANCH, { format: Phaser.Tilemaps.Formats.TILED_JSON, data: buildRanchMap() });
     generatePlaceholders(this);
+    generateFarmTextures(this);
     this.registerAnimations();
     this.scene.start(SCENE.TITLE);
   }

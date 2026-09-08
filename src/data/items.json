@@ -1,7 +1,7 @@
 [
   { "id": "hammer", "name": "Hammer", "hint": "Building and repairs come in a later update." },
   { "id": "lasso", "name": "Lasso", "hint": "Catching wild horses comes in a later update." },
-  { "id": "bucket", "name": "Bucket", "hint": "Watering comes in a later update." },
+  { "id": "bucket", "name": "Bucket", "hint": "Water the kitchen garden." },
   { "id": "brush", "name": "Brush", "hint": "Brush Star to clean her coat." },
   { "id": "carrot", "name": "Carrot", "hint": "Star's favourite treat." },
   { "id": "flowers", "name": "Flowers", "hint": "Gifts for townsfolk come in a later update." },

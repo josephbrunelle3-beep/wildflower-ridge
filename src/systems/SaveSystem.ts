@@ -73,6 +73,13 @@ function migrate(parsed: Partial<GameState> & { version?: number }): GameState {
     time: { ...fresh.time, ...(parsed.time ?? {}) },
     gold: typeof parsed.gold === 'number' ? parsed.gold : fresh.gold,
     inventory: { ...fresh.inventory, ...(parsed.inventory ?? {}) },
+    farm: {
+      ...fresh.farm,
+      ...(parsed.farm ?? {}),
+      plots: { ...(parsed.farm?.plots ?? {}) },
+      seeds: { ...(parsed.farm?.seeds ?? fresh.farm.seeds) },
+      produce: { ...(parsed.farm?.produce ?? {}) },
+    },
     quests: { ...(parsed.quests ?? {}) },
     flags: { ...(parsed.flags ?? {}) },
     selectedSlot: typeof parsed.selectedSlot === 'number' ? parsed.selectedSlot : fresh.selectedSlot,

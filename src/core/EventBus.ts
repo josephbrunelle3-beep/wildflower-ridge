@@ -54,6 +54,8 @@ export const EV = {
   HORSE_CHANGED: 'horse:changed', // ()
   PROMPT: 'ui:prompt', // (text: string | null)
   TOAST: 'ui:toast', // (text: string)
+  FARM_CHANGED: 'farm:changed', // ()
+  SHOP_OPEN: 'shop:open', // (spec: ShopSpec)
   CARE_OPEN: 'care:open', // ()
   CARE_ACTION: 'care:action', // (action: CareAction)
   DIALOGUE_START: 'dialogue:start', // (npcId: string, node: string)

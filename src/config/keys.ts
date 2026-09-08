@@ -7,6 +7,7 @@ export const TEX = {
   HORSE_TACKED: 'horse-tacked',
   HORSE_JUMP: 'horse-jump',
   ICONS: 'icons',
+  FARM: 'farm',
   MINIMAP: 'minimap',
 } as const;
 

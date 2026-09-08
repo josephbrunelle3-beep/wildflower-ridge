@@ -7,6 +7,8 @@ import { G } from '../core/Session';
 import { Horse } from '../entities/Horse';
 import { Npc } from '../entities/Npc';
 import { Player } from '../entities/Player';
+import { FarmLayer } from '../gfx/FarmLayer';
+import { advanceDay, dayReportMessage } from '../systems/FarmingSystem';
 import {
   brush, canGallop, canRide, drainGallop, feed, groom, pet, tack, applyHourlyDecay, type CareAction,
 } from '../systems/HorseCareSystem';
@@ -22,6 +24,7 @@ export class RanchScene extends Phaser.Scene {
   private player!: Player;
   private horse!: Horse;
   private npc!: Npc;
+  private farm!: FarmLayer;
   private clock!: TimeSystem;
   private keys!: Keys;
   private slotKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -73,6 +76,10 @@ export class RanchScene extends Phaser.Scene {
 
     const js = center(find('jasper'));
     this.npc = new Npc(this, js.x, js.y, TEX.NPC_JASPER, 'jasper', 'Jasper');
+
+    this.farm = new FarmLayer(this, decor, this.interactions);
+    this.physics.add.collider(this.player, this.farm.solids);
+    this.physics.add.collider(this.horse, this.farm.solids);
 
     this.physics.add.collider(this.player, decor);
     // A jumping horse passes over low obstacles. Everything else in the decor layer -
@@ -192,6 +199,8 @@ export class RanchScene extends Phaser.Scene {
       if (target && JD(k.E)) target.interact();
     }
 
+    if (isQuestActive(state, 'harvest') && state.farm.harvested > 0) this.finishQuest('harvest');
+
     if (this.pastureZone && isQuestActive(state, 'pasture') && this.pastureZone.contains(this.player.x, this.player.y)) {
       this.finishQuest('pasture');
     }
@@ -257,7 +266,13 @@ export class RanchScene extends Phaser.Scene {
       bus.emit(EV.HORSE_CHANGED);
       bus.emit(EV.TIME_HOUR, tick.hours);
     }
-    if (tick.days > 0) bus.emit(EV.TIME_DAY, state.time);
+    if (tick.days > 0) {
+      const report = advanceDay(state, tick.days);
+      bus.emit(EV.FARM_CHANGED);
+      const line = dayReportMessage(report);
+      if (line) this.time.delayedCall(1400, () => bus.emit(EV.TOAST, line));
+      bus.emit(EV.TIME_DAY, state.time);
+    }
   }
 
   private onCareAction(action: CareAction): void {

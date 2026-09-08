@@ -29,6 +29,24 @@ describe('SaveSystem', () => {
     expect(loaded.player).toEqual(s.player);
   });
 
+  it('round-trips the garden, and fills it in for a save made before farming existed', () => {
+    const storage = memStorage();
+    const s = createNewGame();
+    s.farm.plots['18,21'] = { crop: 'carrot', growth: 2, watered: true, sownDay: 11, withered: false };
+    s.farm.produce.pumpkin = 2;
+    s.farm.harvested = 3;
+    expect(saveGame(s, storage)).toBe(true);
+    const loaded = loadGame(storage)!;
+    expect(loaded.farm.plots['18,21']).toEqual(s.farm.plots['18,21']);
+    expect(loaded.farm.produce.pumpkin).toBe(2);
+    expect(loaded.farm.harvested).toBe(3);
+
+    storage.setItem(SAVE_KEY, JSON.stringify({ version: 1, gold: 5 }));
+    const old = loadGame(storage)!;
+    expect(old.farm.plots).toEqual({});
+    expect(old.farm.seeds.carrot).toBe(3);
+  });
+
   it('returns null with no save or corrupt data', () => {
     const storage = memStorage();
     expect(loadGame(storage)).toBeNull();

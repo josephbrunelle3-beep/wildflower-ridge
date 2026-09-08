@@ -9,6 +9,7 @@ import { Hotbar } from '../ui/Hotbar';
 import { Hud } from '../ui/Hud';
 import { Minimap } from '../ui/Minimap';
 import { PauseMenu } from '../ui/PauseMenu';
+import { ShopMenu, type ShopSpec } from '../ui/ShopMenu';
 import { Toast } from '../ui/Toast';
 import type { RanchScene } from './RanchScene';
 
@@ -26,6 +27,7 @@ export class UIScene extends Phaser.Scene {
   private care!: CareMenu;
   private dialogue!: DialogueBox;
   private pause!: PauseMenu;
+  private shop!: ShopMenu;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
   private justOpened = false;
   private unsubs: (() => void)[] = [];
@@ -45,6 +47,7 @@ export class UIScene extends Phaser.Scene {
     this.care = new CareMenu(this);
     this.dialogue = new DialogueBox(this);
     this.pause = new PauseMenu(this);
+    this.shop = new ShopMenu(this);
 
     this.keys = this.input.keyboard!.addKeys('UP,DOWN,W,S,E,ENTER,SPACE,ESC') as Record<string, Phaser.Input.Keyboard.Key>;
 
@@ -52,6 +55,7 @@ export class UIScene extends Phaser.Scene {
       bus.on(EV.CARE_OPEN, () => this.openMenu(() => this.care.open())),
       bus.on(EV.DIALOGUE_START, (npcId: string, node: string) => this.openMenu(() => this.dialogue.open(npcId, node))),
       bus.on(EV.PAUSE_OPEN, () => this.openMenu(() => this.pause.open())),
+      bus.on(EV.SHOP_OPEN, (spec: ShopSpec) => this.openMenu(() => this.shop.open(spec))),
     );
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.teardown());
   }
@@ -71,7 +75,7 @@ export class UIScene extends Phaser.Scene {
 
     const k = this.keys;
     const JD = Phaser.Input.Keyboard.JustDown;
-    const anyOpen = this.care.isOpen || this.dialogue.isOpen || this.pause.isOpen;
+    const anyOpen = this.care.isOpen || this.dialogue.isOpen || this.pause.isOpen || this.shop.isOpen;
     G.uiLocked = anyOpen;
     if (!anyOpen || this.justOpened) {
       // Consume the press that opened the menu (or any stray presses while closed).
@@ -98,6 +102,11 @@ export class UIScene extends Phaser.Scene {
       if (down) this.pause.move(1);
       if (confirm) this.pause.select();
       if (cancel) this.pause.close();
+    } else if (this.shop.isOpen) {
+      if (up) this.shop.move(-1);
+      if (down) this.shop.move(1);
+      if (confirm) this.shop.select();
+      if (cancel) this.shop.close();
     }
   }
 
@@ -118,6 +127,7 @@ export class UIScene extends Phaser.Scene {
     this.care.close();
     this.dialogue.close();
     this.pause.close();
+    this.shop.close();
     G.uiLocked = false;
   }
 }

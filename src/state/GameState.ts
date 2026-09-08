@@ -36,6 +36,31 @@ export interface HorseState {
   lastGroomDay: number;
 }
 
+/** One tilled square of the kitchen garden. Untilled ground has no entry at all. */
+export interface PlotState {
+  /** Crop id, or null for bare tilled soil. */
+  crop: string | null;
+  /** Watered days accumulated since sowing. */
+  growth: number;
+  /** Watered today? Cleared every morning. */
+  watered: boolean;
+  /** Absolute day the current crop was sown, or -1. */
+  sownDay: number;
+  /** True once a crop has been caught out by the turn of the season. */
+  withered: boolean;
+}
+
+export interface FarmState {
+  /** Tilled squares, keyed `x,y` in tile coordinates. */
+  plots: Record<string, PlotState>;
+  /** Seed packets on hand, by crop id. */
+  seeds: Record<string, number>;
+  /** Harvested produce waiting for the shipping crate, by crop id. */
+  produce: Record<string, number>;
+  /** Lifetime count of crops harvested, for the quest and for flavour. */
+  harvested: number;
+}
+
 export interface PlayerState {
   x: number;
   y: number;
@@ -51,6 +76,7 @@ export interface GameState {
   time: TimeState;
   gold: number;
   inventory: { carrots: number; hay: number };
+  farm: FarmState;
   quests: Record<string, QuestStatus>;
   flags: Record<string, boolean>;
   selectedSlot: number;
@@ -79,6 +105,7 @@ export function createNewGame(): GameState {
     time: { year: 1, season: 0, day: 12, minutes: 18 * 60 + 40 },
     gold: BALANCE.startGold,
     inventory: { carrots: BALANCE.startCarrots, hay: 0 },
+    farm: { plots: {}, seeds: { carrot: 3 }, produce: {}, harvested: 0 },
     quests: {},
     flags: {},
     selectedSlot: 4,

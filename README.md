@@ -3,8 +3,8 @@
 *Live your life. Ride your dreams.*
 
 A cosy horse-ranch life sim for the browser, built with Phaser 3, TypeScript and Vite.
-This is the vertical slice: one ranch map, a horse to care for and ride, a day/night clock,
-a townsperson to meet, two starter quests, and local saves.
+This is the vertical slice: one ranch map, a horse to care for and ride, a kitchen garden to
+work, a day/night clock, a townsperson to meet, three starter quests, and local saves.
 
 ## Play
 
@@ -23,6 +23,28 @@ Open http://localhost:5173.
 | E | Interact, talk, mount menu, dismount |
 | 1-8 | Select a tool on the hotbar |
 | Esc | Pause menu (save, quit) |
+
+### Farming
+
+The kitchen garden is the patch of ground west of the house, between the pond and the path,
+with a seed crate and a shipping crate beside it. Stand at a square and press **E** to work it:
+bare ground gets turned over, tilled soil opens the sowing list, and a ripe row is picked. To
+water, select the **bucket (3)** first.
+
+Crops grow by *watered days*, not calendar days — an unwatered row simply waits, so nothing
+dies of neglect. What does kill a crop is the turn of the season: a spring crop caught by
+summer withers and has to be cleared. Tomatoes and corn keep bearing after a picking; carrots
+and timothy grass go straight into the barn as treats and hay for Star, and everything else
+goes in the shipping crate for gold.
+
+| Crop | Season | Watered days | Packet | Sells for |
+|---|---|---|---|---|
+| Carrots | Spring, Fall | 4 | 36g | feeds Star |
+| Timothy Grass | Spring, Summer | 5 | 45g | becomes hay |
+| Sweet Peas | Spring | 6 | 60g | 60g |
+| Tomatoes | Summer | 7 (regrows in 3) | 90g | 55g |
+| Corn | Summer, Fall | 8 (regrows in 4) | 105g | 70g |
+| Pumpkins | Fall | 9 | 135g | 170g |
 
 ### Riding
 
@@ -55,14 +77,15 @@ Append `?st=1` to the URL to run the game loop on timers instead of requestAnima
 
 ```
 src/main.ts              Phaser config and boot
-src/config/              keys, tile catalogue, balance tunables
+src/config/              keys, tile catalogue, balance tunables, the crop table
 src/state/GameState.ts   the single serialisable save state
 src/core/                EventBus (scene <-> HUD messaging), Session (live state)
-src/systems/             Phaser-free logic: time, horse care, quests, saves, economy, interaction
+src/systems/             Phaser-free logic: time, horse care, farming, quests, saves, economy, interaction
 src/entities/            Player, Horse, Npc sprites
 src/scenes/              Boot, Title, Ranch (world), UI (HUD overlay)
-src/ui/                  panels, hotbar, minimap, care menu, dialogue, pause, toasts
-src/gfx/                 placeholder art and the ranch map, both generated at boot
+src/ui/                  panels, hotbar, minimap, care menu, seed/shipping menu, dialogue, pause, toasts
+src/gfx/                 placeholder art, the crop sheet and the ranch map, all generated at boot
+src/gfx/FarmLayer.ts     the kitchen garden in the world: soil, crops, crates, [E] handling
 src/data/                quests, items, dialogue JSON
 tests/                   Vitest specs for the systems
 ```
