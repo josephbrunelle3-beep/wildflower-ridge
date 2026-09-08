@@ -66,9 +66,44 @@ const PAL = {
   stoneLight: '#adaa9f',
 };
 
-interface PersonPalette { hat: string; hair: string; skin: string; shirt: string; pants: string; boots: string }
-export const PLAYER_PALETTE: PersonPalette = { hat: '#8a5a2b', hair: '#4a2a12', skin: '#f0c8a0', shirt: '#3f6fb5', pants: '#5a4030', boots: '#3a2414' };
-export const JASPER_PALETTE: PersonPalette = { hat: '#4a4a4a', hair: '#2a2a2a', skin: '#e6b98a', shirt: '#3f7f3a', pants: '#4a3a2a', boots: '#2a1a10' };
+interface PersonPalette {
+  hat: string;
+  hair: string;
+  hairLight: string;
+  skin: string;
+  shirt: string;
+  shirtDark: string;
+  pants: string;
+  boots: string;
+  /** 'braid' hangs a plait down the back; 'short' is cropped under the hat. */
+  hairStyle: 'braid' | 'short';
+}
+
+/** The rancher: a cowgirl with a long auburn plait under a wide-brimmed hat. */
+export const PLAYER_PALETTE: PersonPalette = {
+  // Rust shirt over denim reads clearly at 16px; an all-brown rider turns to mush.
+  hat: '#7d4f2a',
+  hair: '#a8481c',
+  hairLight: '#c9682c',
+  skin: '#f0c8a0',
+  shirt: '#c4553f',
+  shirtDark: '#9e4030',
+  pants: '#4a6fa5',
+  boots: '#3a2414',
+  hairStyle: 'braid',
+};
+
+export const JASPER_PALETTE: PersonPalette = {
+  hat: '#4a4a4a',
+  hair: '#2a2a2a',
+  hairLight: '#3d3d3d',
+  skin: '#e6b98a',
+  shirt: '#3f7f3a',
+  shirtDark: '#316030',
+  pants: '#4a3a2a',
+  boots: '#2a1a10',
+  hairStyle: 'short',
+};
 
 function makeCanvas(w: number, h: number): [HTMLCanvasElement, Ctx] {
   const c = document.createElement('canvas');
@@ -373,8 +408,26 @@ function makePersonSheet(pal: PersonPalette): HTMLCanvasElement {
 function drawPerson(ctx: Ctx, dir: Facing, frame: number, pal: PersonPalette) {
   const P = (x: number, y: number, w: number, h: number, col: string) => rect(ctx, x, y, w, h, col);
   const back = dir === 'up';
+  const side = dir === 'left' || dir === 'right';
+  const braid = pal.hairStyle === 'braid';
 
   shadow(ctx, 8, 31, 5, 1.5, 0.22);
+
+  // The plait behind the body goes down first, so the torso overlaps it.
+  const sway = frame === 1 ? -1 : frame === 2 ? 1 : 0;
+  if (braid && back) {
+    // Straight down the spine, swinging with the stride.
+    P(7 + sway, 12, 3, 10, pal.hair);
+    P(7 + sway, 12, 1, 9, pal.hairLight);
+    P(7 + sway, 21, 3, 2, pal.hairLight);
+  }
+  if (braid && side) {
+    // Trailing clear of the back so it is not swallowed by the torso.
+    const bx = dir === 'right' ? 1 : 13;
+    P(bx, 11, 2, 9, pal.hair);
+    P(bx, 11, 1, 8, pal.hairLight);
+    P(bx, 19, 2, 2, pal.hairLight);
+  }
 
   // Legs: one steps forward on frame 1, the other on frame 2.
   const leftLen = frame === 2 ? 7 : 9;
@@ -382,30 +435,46 @@ function drawPerson(ctx: Ctx, dir: Facing, frame: number, pal: PersonPalette) {
   P(5, 22, 3, leftLen, pal.pants); P(5, 22 + leftLen, 3, 31 - (22 + leftLen), pal.boots);
   P(9, 22, 3, rightLen, pal.pants); P(9, 22 + rightLen, 3, 31 - (22 + rightLen), pal.boots);
 
-  // Torso
-  P(4, 13, 8, 9, pal.shirt);
+  // Torso: narrower at the waist than the shoulders, which is most of the read at 16px.
+  P(4, 13, 8, 5, pal.shirt);
+  P(5, 18, 6, 4, pal.shirt);
   P(4, 13, 8, 1, '#ffffff22');
-  P(4, 20, 8, 2, pal.pants); // belt line
-  // Arms, swinging opposite the legs
+  P(5, 20, 6, 2, pal.pants); // belt
+  P(7, 20, 2, 2, '#d8b24a'); // buckle
+  P(4, 16, 8, 1, pal.shirtDark); // yoke seam
+
+  // Arms, swinging opposite the legs.
   const lArm = frame === 1 ? 14 : 13;
   const rArm = frame === 2 ? 14 : 13;
-  P(2, lArm, 2, 6, pal.shirt); P(2, lArm + 6, 2, 2, pal.skin);
-  P(12, rArm, 2, 6, pal.shirt); P(12, rArm + 6, 2, 2, pal.skin);
+  P(3, lArm, 2, 6, pal.shirt); P(3, lArm + 6, 2, 2, pal.skin);
+  P(11, rArm, 2, 6, pal.shirt); P(11, rArm + 6, 2, 2, pal.skin);
 
   // Head
   P(4, 5, 8, 8, pal.skin);
-  if (back) P(4, 5, 8, 8, pal.hair);
-  else {
+  if (back) {
+    P(4, 5, 8, 8, pal.hair);
+    P(5, 5, 6, 1, pal.hairLight);
+  } else {
     P(4, 5, 8, 2, pal.hair); // fringe
-    P(3, 6, 1, 5, pal.hair); P(12, 6, 1, 5, pal.hair); // hair at the sides
+    P(3, 6, 1, 6, pal.hair); P(12, 6, 1, 6, pal.hair); // hair framing the face
+    if (braid) { P(3, 11, 2, 2, pal.hair); P(11, 11, 2, 2, pal.hair); } // longer at the jaw
   }
-  P(5, 13, 6, 1, pal.skin); // neck
+  P(6, 13, 4, 1, pal.skin); // neck
 
-  // Hat: crown plus a wide brim, the most readable cowgirl cue at this size.
+  // Hat: crown plus a wide brim, the most readable ranch cue at this size.
   P(5, 0, 6, 4, pal.hat);
   P(5, 0, 6, 1, '#ffffff22');
   P(2, 4, 12, 2, pal.hat);
   P(2, 5, 12, 1, INK);
+
+  // Facing the camera the plait comes forward over one shoulder, drawn last so it sits
+  // on top of the shirt. Without this the front view has no visible hair at all.
+  if (braid && dir === 'down') {
+    P(11, 12, 2, 8, pal.hair);
+    P(11, 12, 1, 7, pal.hairLight);
+    P(11, 19, 2, 2, pal.hairLight);
+    P(11, 21, 2, 1, pal.hair); // tie
+  }
 
   // Eyes
   if (dir === 'down') { P(6, 9, 1, 2, INK); P(9, 9, 1, 2, INK); }

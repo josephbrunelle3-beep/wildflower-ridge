@@ -4,7 +4,7 @@ import { TEX } from '../config/keys';
 import { horseAnimKey, horseIdleFrame, jumpAnimKey, type Gait, type HorseSheet } from '../config/sprites';
 import type { Facing, HorseState } from '../state/GameState';
 import type { Interactable } from '../systems/InteractionSystem';
-import { canJump, createMoveState, facingFor, gaitFor, stepMovement, type MoveState } from '../systems/HorseMovement';
+import { angleDelta, canJump, createMoveState, facingFor, gaitFor, stepMovement, type MoveState } from '../systems/HorseMovement';
 
 type Mode = 'idle' | 'wander' | 'eat' | 'mounted';
 
@@ -12,6 +12,10 @@ const TEXTURE_FOR: Record<HorseSheet, string> = {
   base: TEX.HORSE,
   tacked: TEX.HORSE_TACKED,
 };
+
+/** How far the sprite may lean off its drawn direction, in radians. */
+const LEAN_SIDE = 0.38;
+const LEAN_HEAD_ON = 0.18;
 
 /** Screen-space heading in radians for each drawn facing (y grows downward). */
 const HEADING_FOR: Record<Facing, number> = {
@@ -92,6 +96,7 @@ export class Horse extends Phaser.Physics.Arcade.Sprite {
     // Start from a standstill pointed the way she is already facing.
     this.move = createMoveState(HEADING_FOR[this.facing]);
     this.jumping = false;
+    this.setRotation(0);
     this.refreshTexture();
     if (!mounted) {
       this.stats.anchorX = this.x;
@@ -126,6 +131,7 @@ export class Horse extends Phaser.Physics.Arcade.Sprite {
       this.facing = facingFor(this.move.heading);
       this.play(horseAnimKey(this.sheet, gait, this.facing), true);
     }
+    this.applyLean();
     this.setDepth(100 + this.y);
     return { braking: r.braking };
   }
@@ -166,6 +172,7 @@ export class Horse extends Phaser.Physics.Arcade.Sprite {
   halt(): void {
     this.move.speed = 0;
     this.arcadeBody.setVelocity(0, 0);
+    this.setRotation(0);
     if (!this.jumping) this.showIdle();
   }
 
@@ -224,6 +231,27 @@ export class Horse extends Phaser.Physics.Arcade.Sprite {
         break;
     }
     this.setDepth(100 + this.y);
+  }
+
+  /**
+   * onfe's art has four drawn directions, so a continuous heading would otherwise snap
+   * ninety degrees at a time. Leaning the sprite toward the true heading turns that pop
+   * into a smooth swing: the drawn direction still changes at the diagonal, but by then
+   * the sprite has already rotated most of the way there.
+   *
+   * Side-on views take a bigger lean than head-on ones, where rotation reads as roll
+   * rather than turn.
+   */
+  private applyLean(): void {
+    // Standing still she is square on her feet, not tilted.
+    if (this.move.speed <= BALANCE.horse.pivotSpeed) {
+      this.setRotation(0);
+      return;
+    }
+    const headOn = this.facing === 'up' || this.facing === 'down';
+    const max = headOn ? LEAN_HEAD_ON : LEAN_SIDE;
+    const residual = angleDelta(HEADING_FOR[this.facing], this.move.heading);
+    this.setRotation(Phaser.Math.Clamp(residual, -max, max));
   }
 
   /** The idle loop doubles as the standing pose; it carries the tail swish and blink. */
