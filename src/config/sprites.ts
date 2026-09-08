@@ -3,27 +3,30 @@ import type { Facing } from '../state/GameState';
 /**
  * Layout of onfe's horse sprite sheets (see CREDITS.md).
  *
- * Every sheet is 18 rows of 80x64 frames, grouped by facing. Side-on groups carry an
- * extra gait (canter) that the head-on groups do not, which is why the groups differ
- * in length:
+ * The gait sheets are 18 rows of 80x64 frames, grouped by facing. Side-on groups carry
+ * an extra gait (canter) that the head-on groups do not, so the groups differ in length:
  *
  *   rows  0-4   facing right : idle, walk, trot, canter, gallop
  *   rows  5-9   facing left  : idle, walk, trot, canter, gallop
  *   rows 10-13  facing down  : idle, walk, trot, gallop
  *   rows 14-17  facing up    : idle, walk, trot, gallop
  *
- * So within a group: idle is first, walk is second, gallop is always last. Rows are
- * ragged - trailing cells in a row are empty - so each animation declares its own
- * frame count rather than assuming the full width of the sheet.
+ * Rows are ragged - trailing cells are empty - so every animation declares its own frame
+ * count, measured from the sheets rather than assumed from the sheet width.
+ *
+ * The jump sheet is separate: taller 80x82 frames, one row per facing in the same order
+ * (right, left, down, up).
  */
 
 export const HORSE_FRAME_W = 80;
 export const HORSE_FRAME_H = 64;
+export const JUMP_FRAME_W = 80;
+export const JUMP_FRAME_H = 82;
 
 /**
- * Columns per sheet. onfe also ships 11-column "ridden" sheets, but their rider is an
- * unclothed base for the developer to paint over, so we use the riderless saddled horse
- * and draw our own rider on top instead.
+ * Columns per gait sheet. onfe also ships 11-column "ridden" sheets, but their rider is
+ * an unclothed base for the developer to paint over, so we use the riderless saddled
+ * horse and draw our own rider on top instead.
  */
 export const HORSE_SHEET_COLS = {
   base: 9,
@@ -31,59 +34,50 @@ export const HORSE_SHEET_COLS = {
 } as const;
 
 export type HorseSheet = keyof typeof HORSE_SHEET_COLS;
-export type HorseAnim = 'idle' | 'walk' | 'gallop';
 
-interface Group {
-  /** First row of the group. */
-  row: number;
-  /** Number of rows in the group. */
-  rows: number;
-}
+/** Gaits, slowest to fastest. This order is also the row order within a facing group. */
+export type Gait = 'idle' | 'walk' | 'trot' | 'canter' | 'gallop';
 
-const GROUPS: Record<Facing, Group> = {
-  right: { row: 0, rows: 5 },
-  left: { row: 5, rows: 5 },
-  down: { row: 10, rows: 4 },
-  up: { row: 14, rows: 4 },
+/** Row order per facing. Head-on views have no canter. */
+const ROW_ORDER: Record<Facing, Gait[]> = {
+  right: ['idle', 'walk', 'trot', 'canter', 'gallop'],
+  left: ['idle', 'walk', 'trot', 'canter', 'gallop'],
+  down: ['idle', 'walk', 'trot', 'gallop'],
+  up: ['idle', 'walk', 'trot', 'gallop'],
 };
 
-/** Row index for one facing + animation. */
-export function horseRow(facing: Facing, anim: HorseAnim): number {
-  const g = GROUPS[facing];
-  if (anim === 'idle') return g.row;
-  if (anim === 'walk') return g.row + 1;
-  return g.row + g.rows - 1; // gallop is always the last row of the group
-}
+/** First row of each facing group. */
+const GROUP_START: Record<Facing, number> = { right: 0, left: 5, down: 10, up: 14 };
 
-/**
- * Frames actually drawn in each row, measured from the sheets (empty trailing cells
- * are excluded). Indexed [sheet][facing][anim].
- */
-const FRAME_COUNTS: Record<HorseSheet, Record<Facing, Record<HorseAnim, number>>> = {
-  base: {
-    right: { idle: 9, walk: 8, gallop: 6 },
-    left: { idle: 9, walk: 8, gallop: 6 },
-    down: { idle: 2, walk: 8, gallop: 6 },
-    up: { idle: 1, walk: 8, gallop: 6 },
-  },
-  tacked: {
-    right: { idle: 9, walk: 8, gallop: 6 },
-    left: { idle: 9, walk: 8, gallop: 6 },
-    down: { idle: 2, walk: 8, gallop: 6 },
-    up: { idle: 1, walk: 8, gallop: 6 },
-  },
+/** Frames actually drawn per row, measured from the sheets, in ROW_ORDER order. */
+const FRAME_COUNTS: Record<Facing, number[]> = {
+  right: [9, 8, 9, 8, 6],
+  left: [9, 8, 9, 8, 6],
+  down: [2, 8, 8, 6],
+  up: [1, 8, 8, 6],
 };
 
-export function horseFrameCount(sheet: HorseSheet, facing: Facing, anim: HorseAnim): number {
-  return FRAME_COUNTS[sheet][facing][anim];
+/** Head-on views lack a canter row, so canter falls back to trot there. */
+function gaitIndex(facing: Facing, gait: Gait): number {
+  const order = ROW_ORDER[facing];
+  const i = order.indexOf(gait);
+  if (i >= 0) return i;
+  return order.indexOf(gait === 'canter' ? 'trot' : 'gallop');
+}
+
+export function horseRow(facing: Facing, gait: Gait): number {
+  return GROUP_START[facing] + gaitIndex(facing, gait);
+}
+
+export function horseFrameCount(facing: Facing, gait: Gait): number {
+  return FRAME_COUNTS[facing][gaitIndex(facing, gait)];
 }
 
 /** Absolute frame indices for one animation, in play order. */
-export function horseFrames(sheet: HorseSheet, facing: Facing, anim: HorseAnim): number[] {
+export function horseFrames(sheet: HorseSheet, facing: Facing, gait: Gait): number[] {
   const cols = HORSE_SHEET_COLS[sheet];
-  const base = horseRow(facing, anim) * cols;
-  const count = horseFrameCount(sheet, facing, anim);
-  return Array.from({ length: count }, (_, i) => base + i);
+  const base = horseRow(facing, gait) * cols;
+  return Array.from({ length: horseFrameCount(facing, gait) }, (_, i) => base + i);
 }
 
 /** The frame shown when the horse is standing still. */
@@ -91,8 +85,21 @@ export function horseIdleFrame(sheet: HorseSheet, facing: Facing): number {
   return horseRow(facing, 'idle') * HORSE_SHEET_COLS[sheet];
 }
 
-export const HORSE_ANIMS: HorseAnim[] = ['idle', 'walk', 'gallop'];
+export const GAITS: Gait[] = ['idle', 'walk', 'trot', 'canter', 'gallop'];
 export const FACINGS: Facing[] = ['down', 'left', 'right', 'up'];
 
-export const horseAnimKey = (sheet: HorseSheet, anim: HorseAnim, facing: Facing): string =>
-  `horse-${sheet}-${anim}-${facing}`;
+export const horseAnimKey = (sheet: HorseSheet, gait: Gait, facing: Facing): string =>
+  `horse-${sheet}-${gait}-${facing}`;
+
+// --- Jump sheet -------------------------------------------------------------
+
+export const JUMP_COLS = 16;
+const JUMP_ROW: Record<Facing, number> = { right: 0, left: 1, down: 2, up: 3 };
+const JUMP_FRAME_COUNTS: Record<Facing, number> = { right: 16, left: 16, down: 13, up: 14 };
+
+export function jumpFrames(facing: Facing): number[] {
+  const base = JUMP_ROW[facing] * JUMP_COLS;
+  return Array.from({ length: JUMP_FRAME_COUNTS[facing] }, (_, i) => base + i);
+}
+
+export const jumpAnimKey = (facing: Facing): string => `horse-jump-${facing}`;

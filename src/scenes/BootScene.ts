@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { MAP, SCENE, TEX } from '../config/keys';
+import { BALANCE } from '../config/balance';
 import {
-  FACINGS, HORSE_ANIMS, HORSE_FRAME_H, HORSE_FRAME_W, horseAnimKey, horseFrames, type HorseSheet,
+  FACINGS, GAITS, HORSE_FRAME_H, HORSE_FRAME_W, JUMP_FRAME_H, JUMP_FRAME_W,
+  horseAnimKey, horseFrames, jumpAnimKey, jumpFrames, type Gait, type HorseSheet,
 } from '../config/sprites';
 import { DIRS, generatePlaceholders, PERSON_COLS } from '../gfx/PlaceholderTextures';
 import { buildRanchMap } from '../gfx/RanchMap';
@@ -13,7 +15,7 @@ const HORSE_SHEETS: Record<HorseSheet, string> = {
 };
 
 /** How fast each gait plays, in frames per second. */
-const HORSE_FPS = { idle: 6, walk: 10, gallop: 14 } as const;
+const HORSE_FPS: Record<Gait, number> = { idle: 6, walk: 10, trot: 12, canter: 13, gallop: 14 };
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -24,6 +26,11 @@ export class BootScene extends Phaser.Scene {
     const frame = { frameWidth: HORSE_FRAME_W, frameHeight: HORSE_FRAME_H };
     this.load.spritesheet(TEX.HORSE, 'assets/sprites/horse-base.png', frame);
     this.load.spritesheet(TEX.HORSE_TACKED, 'assets/sprites/horse-tacked.png', frame);
+    // The jump sheet has taller frames, so it gets its own texture rather than a row.
+    this.load.spritesheet(TEX.HORSE_JUMP, 'assets/sprites/horse-jump.png', {
+      frameWidth: JUMP_FRAME_W,
+      frameHeight: JUMP_FRAME_H,
+    });
   }
 
   create(): void {
@@ -48,17 +55,26 @@ export class BootScene extends Phaser.Scene {
 
     for (const sheet of Object.keys(HORSE_SHEETS) as HorseSheet[]) {
       const key = HORSE_SHEETS[sheet];
-      for (const anim of HORSE_ANIMS) {
+      for (const gait of GAITS) {
         for (const facing of FACINGS) {
-          const frames = horseFrames(sheet, facing, anim);
           this.anims.create({
-            key: horseAnimKey(sheet, anim, facing),
-            frames: frames.map((frame) => ({ key, frame })),
-            frameRate: HORSE_FPS[anim],
+            key: horseAnimKey(sheet, gait, facing),
+            frames: horseFrames(sheet, facing, gait).map((frame) => ({ key, frame })),
+            frameRate: HORSE_FPS[gait],
             repeat: -1,
           });
         }
       }
+    }
+
+    // The jump plays once; the horse lands when it completes.
+    for (const facing of FACINGS) {
+      this.anims.create({
+        key: jumpAnimKey(facing),
+        frames: jumpFrames(facing).map((frame) => ({ key: TEX.HORSE_JUMP, frame })),
+        frameRate: BALANCE.horse.jump.frameRate,
+        repeat: 0,
+      });
     }
   }
 }

@@ -5,6 +5,7 @@ export const TEX = {
   NPC_JASPER: 'npc-jasper',
   HORSE: 'horse',
   HORSE_TACKED: 'horse-tacked',
+  HORSE_JUMP: 'horse-jump',
   ICONS: 'icons',
   MINIMAP: 'minimap',
 } as const;

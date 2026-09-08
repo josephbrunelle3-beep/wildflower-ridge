@@ -48,27 +48,40 @@ export const SOLID_TILES: number[] = [
   TILE.ROCK,
 ];
 
+/**
+ * Obstacles low enough for a horse to jump. Everything else in SOLID_TILES stays solid
+ * even mid-air: you cannot leap a barn, a tree, or a pond.
+ */
+export const JUMPABLE_TILES: number[] = [
+  TILE.FENCE_H,
+  TILE.FENCE_V,
+  TILE.FENCE_POST,
+  TILE.BUSH,
+  TILE.ROCK,
+  TILE.TROUGH,
+];
+
 /** Approximate colour per tile, used by the minimap. */
 export const TILE_COLORS: Record<number, string> = {
-  [TILE.GRASS]: '#5fa14a',
-  [TILE.GRASS_ALT]: '#64a84e',
-  [TILE.DIRT]: '#b98a5a',
-  [TILE.WATER]: '#4a8fd1',
-  [TILE.FENCE_H]: '#8a6236',
-  [TILE.FENCE_V]: '#8a6236',
-  [TILE.FENCE_POST]: '#8a6236',
-  [TILE.TREE]: '#2f6b32',
-  [TILE.BARN_WALL]: '#a63a2b',
-  [TILE.BARN_ROOF]: '#6b3b2a',
-  [TILE.HOUSE_WALL]: '#d8c39a',
-  [TILE.HOUSE_ROOF]: '#7a5230',
-  [TILE.HAY]: '#d8b84a',
-  [TILE.TROUGH]: '#6d4a2c',
-  [TILE.FLOWERS]: '#7fb457',
-  [TILE.SIGN]: '#8a6236',
-  [TILE.BARN_DOOR]: '#5a2d20',
-  [TILE.HOUSE_DOOR]: '#6d4a2c',
-  [TILE.GATE]: '#b98a5a',
-  [TILE.BUSH]: '#3f7f3a',
-  [TILE.ROCK]: '#8b8b86',
+  [TILE.GRASS]: '#6a9c4a',
+  [TILE.GRASS_ALT]: '#76a750',
+  [TILE.DIRT]: '#b58757',
+  [TILE.WATER]: '#3d86c4',
+  [TILE.FENCE_H]: '#7a5231',
+  [TILE.FENCE_V]: '#7a5231',
+  [TILE.FENCE_POST]: '#7a5231',
+  [TILE.TREE]: '#2f5f34',
+  [TILE.BARN_WALL]: '#a8392b',
+  [TILE.BARN_ROOF]: '#7d5334',
+  [TILE.HOUSE_WALL]: '#d9c096',
+  [TILE.HOUSE_ROOF]: '#7d5334',
+  [TILE.HAY]: '#d4ad4a',
+  [TILE.TROUGH]: '#5c3c22',
+  [TILE.FLOWERS]: '#7fb35a',
+  [TILE.SIGN]: '#7a5231',
+  [TILE.BARN_DOOR]: '#5c3c22',
+  [TILE.HOUSE_DOOR]: '#5c3c22',
+  [TILE.GATE]: '#b58757',
+  [TILE.BUSH]: '#3e7a3f',
+  [TILE.ROCK]: '#8f8b82',
 };

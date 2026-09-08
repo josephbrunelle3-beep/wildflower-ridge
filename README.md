@@ -17,11 +17,23 @@ Open http://localhost:5173.
 
 | Key | Action |
 |---|---|
-| WASD / arrows | Walk (or ride) |
+| WASD / arrows | Walk (or steer the horse) |
 | Shift | Run / gallop |
+| Space | Jump (mounted, needs pace) |
 | E | Interact, talk, mount menu, dismount |
 | 1-8 | Select a tool on the hotbar |
 | Esc | Pause menu (save, quit) |
+
+### Riding
+
+Star carries her own momentum. She takes a moment to wind up, and from a gallop she will
+run on for about five seconds if you simply drop the reins — to pull up sharply, hold the
+direction *against* the way she is going and she reins back. She also cannot pivot at
+speed: the faster she goes the wider she turns, so line up early.
+
+Press **Space** at a canter or gallop to jump. She clears fences, bushes, rocks and the
+water trough; trees, buildings and the pond stay solid whether she is airborne or not.
+You cannot step off a moving horse — rein her in first.
 
 Get Star's trust up by petting and feeding her, select the saddle (7) to tack up, then choose
 Ride from her care menu. Sleep in the house after 6 PM to end the day; the game autosaves.

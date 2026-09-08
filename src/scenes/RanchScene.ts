@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { BALANCE } from '../config/balance';
 import { MAP, SCENE, TEX, WORLD_ZOOM } from '../config/keys';
-import { SOLID_TILES } from '../config/tiles';
+import { JUMPABLE_TILES, SOLID_TILES } from '../config/tiles';
 import { bus, EV } from '../core/EventBus';
 import { G } from '../core/Session';
 import { Horse } from '../entities/Horse';
@@ -75,7 +75,14 @@ export class RanchScene extends Phaser.Scene {
     this.npc = new Npc(this, js.x, js.y, TEX.NPC_JASPER, 'jasper', 'Jasper');
 
     this.physics.add.collider(this.player, decor);
-    this.physics.add.collider(this.horse, decor);
+    // A jumping horse passes over low obstacles. Everything else in the decor layer -
+    // trees, buildings, the pond - stays solid whether she is airborne or not.
+    this.physics.add.collider(
+      this.horse,
+      decor,
+      undefined,
+      (_horse, tile) => !(this.horse.airborne && JUMPABLE_TILES.includes((tile as Phaser.Tilemaps.Tile).index - 1)),
+    );
     this.physics.add.collider(this.player, this.npc);
     this.physics.add.collider(this.player, this.horse);
 
@@ -105,7 +112,7 @@ export class RanchScene extends Phaser.Scene {
 
     // --- Input -------------------------------------------------------------
     const kb = this.input.keyboard!;
-    this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,E,ESC') as Keys;
+    this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT,E,ESC,SPACE') as Keys;
     this.slotKeys = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT'].map((k) => kb.addKey(k));
 
     // --- Events ------------------------------------------------------------
@@ -162,18 +169,21 @@ export class RanchScene extends Phaser.Scene {
 
     if (this.mounted) {
       const gallop = run && canGallop(state.horse);
-      this.horse.ride(dx, dy, gallop);
+      if (JD(k.SPACE)) this.tryJump();
+      const { braking } = this.horse.ride(dx, dy, gallop, dt);
       this.player.rideOn(this.horse);
-      const moving = dx !== 0 || dy !== 0;
-      if (gallop && moving) {
+
+      // Galloping costs condition; only the real thing, not merely asking for it.
+      if (gallop && this.horse.gait === 'gallop') {
         drainGallop(state.horse, dt / 1000);
         this.galloping = true;
       } else if (this.galloping) {
         this.galloping = false;
         bus.emit(EV.HORSE_CHANGED);
       }
-      this.setPrompt(gallop && moving ? null : run && moving ? `${state.horse.name} is too tired to gallop` : '[E] Dismount  ·  hold Shift to gallop');
-      if (JD(k.E)) this.dismount();
+
+      this.setPrompt(this.ridePrompt(braking, run, gallop));
+      if (JD(k.E)) this.tryDismount();
     } else {
       this.player.move(dx, dy, run);
       this.horse.updateAI(dt);
@@ -308,6 +318,40 @@ export class RanchScene extends Phaser.Scene {
     this.setPrompt(null);
     bus.emit(EV.DISMOUNT);
     bus.emit(EV.HORSE_CHANGED);
+  }
+
+  /** You cannot step off a moving horse; rein her in first. */
+  private tryDismount(): void {
+    if (this.horse.airborne) return;
+    if (this.horse.gait !== 'idle') {
+      bus.emit(EV.TOAST, `Rein ${G.state.horse.name} in before you get down.`);
+      return;
+    }
+    this.dismount();
+  }
+
+  private tryJump(): void {
+    if (this.horse.tryJump()) return;
+    if (!this.horse.airborne) {
+      bus.emit(EV.TOAST, `${G.state.horse.name} needs more pace to jump.`);
+    }
+  }
+
+  /** One line of contextual coaching under the horse while riding. */
+  private ridePrompt(braking: boolean, run: boolean, gallop: boolean): string | null {
+    const name = G.state.horse.name;
+    if (this.horse.airborne) return null;
+    if (braking) return `Reining ${name} in…`;
+    if (run && !gallop) return `${name} is too tired to gallop`;
+    switch (this.horse.gait) {
+      case 'idle':
+        return '[E] Dismount  ·  WASD to ride  ·  Shift to gallop';
+      case 'gallop':
+      case 'canter':
+        return '[Space] Jump  ·  hold back on the reins to slow';
+      default:
+        return '[Space] Jump  ·  Shift to gallop';
+    }
   }
 
   private onDialogueEnd(npcId: string, end: string): void {
