@@ -13,8 +13,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.facing = facing;
     scene.add.existing(this);
     scene.physics.add.existing(this);
+    // Bottom-centre origin, matching the horse: position is where the feet are.
+    this.setOrigin(0.5, 1);
     this.setCollideWorldBounds(true);
-    this.arcadeBody.setSize(10, 8).setOffset(3, 8);
+    this.arcadeBody.setSize(10, 6).setOffset(3, 26);
     this.setDepth(100 + y);
   }
 
@@ -48,10 +50,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.anims.stop();
   }
 
-  /** While mounted: sit on the horse's back and copy its facing. */
+  /** Sit the rider on the saddle, facing the way the horse is going. */
   rideOn(horse: Horse): void {
     this.facing = horse.facing;
-    this.setPosition(horse.x, horse.y - 8);
+    this.setPosition(horse.x, horse.y + horse.saddleOffsetY);
     this.setFrame(personIdleFrame(this.facing));
     this.setDepth(horse.depth + 1);
   }

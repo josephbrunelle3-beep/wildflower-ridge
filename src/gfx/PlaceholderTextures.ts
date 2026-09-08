@@ -13,19 +13,19 @@ type Ctx = CanvasRenderingContext2D;
 
 export const DIRS: Facing[] = ['down', 'left', 'right', 'up'];
 export const PERSON_COLS = 3; // stand, step A, step B
-export const HORSE_COLS = 4; // stand, step A, step B, eat
-export const PERSON_SIZE = 16;
-export const HORSE_SIZE = 32;
+/**
+ * People are drawn two tiles tall (16x32), matching the proportions of onfe's horse
+ * art: its rider is ~32px, so a one-tile player would stand half the height of the
+ * same character once mounted.
+ */
+export const PERSON_W = 16;
+export const PERSON_H = 32;
 
 export const personIdleFrame = (f: Facing) => DIRS.indexOf(f) * PERSON_COLS;
-export const horseIdleFrame = (f: Facing) => DIRS.indexOf(f) * HORSE_COLS;
 
 interface PersonPalette { hat: string; hair: string; skin: string; shirt: string; pants: string; boots: string }
 export const PLAYER_PALETTE: PersonPalette = { hat: '#8a5a2b', hair: '#4a2a12', skin: '#f0c8a0', shirt: '#3f6fb5', pants: '#5a4030', boots: '#3a2414' };
 export const JASPER_PALETTE: PersonPalette = { hat: '#4a4a4a', hair: '#2a2a2a', skin: '#e6b98a', shirt: '#3f7f3a', pants: '#4a3a2a', boots: '#2a1a10' };
-
-interface HorsePalette { coat: string; light: string; mane: string; hoof: string; saddle: string; saddleLight: string; strap: string }
-const BAY: HorsePalette = { coat: '#8b5a2b', light: '#a06d3a', mane: '#2b1a10', hoof: '#1e1410', saddle: '#5a3a1e', saddleLight: '#7a5230', strap: '#3a2414' };
 
 function makeCanvas(w: number, h: number): [HTMLCanvasElement, Ctx] {
   const c = document.createElement('canvas');
@@ -49,13 +49,12 @@ function addSheet(scene: Phaser.Scene, key: string, canvas: HTMLCanvasElement, f
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) tex.add(i++, 0, c * fw, r * fh, fw, fh);
 }
 
+/** The horse sheets are real art loaded in BootScene; everything else is drawn here. */
 export function generatePlaceholders(scene: Phaser.Scene): void {
   const t = scene.textures;
   if (!t.exists(TEX.TILES)) t.addCanvas(TEX.TILES, makeTiles());
-  if (!t.exists(TEX.PLAYER)) addSheet(scene, TEX.PLAYER, makePersonSheet(PLAYER_PALETTE), PERSON_SIZE, PERSON_SIZE);
-  if (!t.exists(TEX.NPC_JASPER)) addSheet(scene, TEX.NPC_JASPER, makePersonSheet(JASPER_PALETTE), PERSON_SIZE, PERSON_SIZE);
-  if (!t.exists(TEX.HORSE)) addSheet(scene, TEX.HORSE, makeHorseSheet(BAY, false), HORSE_SIZE, HORSE_SIZE);
-  if (!t.exists(TEX.HORSE_TACKED)) addSheet(scene, TEX.HORSE_TACKED, makeHorseSheet(BAY, true), HORSE_SIZE, HORSE_SIZE);
+  if (!t.exists(TEX.PLAYER)) addSheet(scene, TEX.PLAYER, makePersonSheet(PLAYER_PALETTE), PERSON_W, PERSON_H);
+  if (!t.exists(TEX.NPC_JASPER)) addSheet(scene, TEX.NPC_JASPER, makePersonSheet(JASPER_PALETTE), PERSON_W, PERSON_H);
   if (!t.exists(TEX.ICONS)) addSheet(scene, TEX.ICONS, makeIcons(), 16, 16);
 }
 
@@ -164,14 +163,15 @@ function drawTile(ctx: Ctx, i: number) {
 }
 
 // ---------------------------------------------------------------------------
-// People: 16x16 frames, 3 columns (stand, step A, step B) x 4 rows (down, left, right, up).
+// People: 16x32 frames, 3 columns (stand, step A, step B) x 4 rows (down, left, right, up).
+// Feet sit on the bottom edge of the frame so sprites can use a bottom origin.
 // ---------------------------------------------------------------------------
 function makePersonSheet(pal: PersonPalette): HTMLCanvasElement {
-  const [c, ctx] = makeCanvas(PERSON_SIZE * PERSON_COLS, PERSON_SIZE * DIRS.length);
+  const [c, ctx] = makeCanvas(PERSON_W * PERSON_COLS, PERSON_H * DIRS.length);
   DIRS.forEach((dir, r) => {
     for (let f = 0; f < PERSON_COLS; f++) {
       ctx.save();
-      ctx.translate(f * PERSON_SIZE, r * PERSON_SIZE);
+      ctx.translate(f * PERSON_W, r * PERSON_H);
       drawPerson(ctx, dir, f, pal);
       ctx.restore();
     }
@@ -181,88 +181,41 @@ function makePersonSheet(pal: PersonPalette): HTMLCanvasElement {
 
 function drawPerson(ctx: Ctx, dir: Facing, frame: number, pal: PersonPalette) {
   const P = (x: number, y: number, w: number, h: number, col: string) => rect(ctx, x, y, w, h, col);
-  // legs
-  const leftLen = frame === 2 ? 3 : 4;
-  const rightLen = frame === 1 ? 3 : 4;
-  P(5, 12, 2, leftLen, pal.pants); P(5, 11 + leftLen, 2, 1, pal.boots);
-  P(9, 12, 2, rightLen, pal.pants); P(9, 11 + rightLen, 2, 1, pal.boots);
-  // torso + arms
-  P(4, 7, 8, 5, pal.shirt);
-  P(3, 7, 1, 4, pal.shirt); P(12, 7, 1, 4, pal.shirt);
-  P(3, 11, 1, 1, pal.skin); P(12, 11, 1, 1, pal.skin);
-  // head
-  P(5, 3, 6, 4, pal.skin);
-  if (dir === 'up') P(5, 3, 6, 4, pal.hair);
-  else P(5, 3, 6, 1, pal.hair);
-  // hat
-  P(5, 0, 6, 2, pal.hat); P(3, 2, 10, 1, pal.hat);
-  // eyes
-  const eye = '#2a1a10';
-  if (dir === 'down') { P(6, 5, 1, 1, eye); P(9, 5, 1, 1, eye); }
-  if (dir === 'left') P(6, 5, 1, 1, eye);
-  if (dir === 'right') P(9, 5, 1, 1, eye);
-}
+  const back = dir === 'up';
 
-// ---------------------------------------------------------------------------
-// Horse: 32x32 frames, 4 columns (stand, step A, step B, eat) x 4 rows (down, left, right, up).
-// ---------------------------------------------------------------------------
-function makeHorseSheet(pal: HorsePalette, tacked: boolean): HTMLCanvasElement {
-  const [c, ctx] = makeCanvas(HORSE_SIZE * HORSE_COLS, HORSE_SIZE * DIRS.length);
-  DIRS.forEach((dir, r) => {
-    for (let f = 0; f < HORSE_COLS; f++) {
-      ctx.save();
-      ctx.translate(f * HORSE_SIZE, r * HORSE_SIZE);
-      if (dir === 'left') {
-        ctx.translate(HORSE_SIZE, 0);
-        ctx.scale(-1, 1);
-        drawHorseSide(ctx, f, pal, tacked);
-      } else if (dir === 'right') drawHorseSide(ctx, f, pal, tacked);
-      else drawHorseTop(ctx, dir, f, pal, tacked);
-      ctx.restore();
-    }
-  });
-  return c;
-}
+  // Legs: one steps forward on frame 1, the other on frame 2.
+  const leftLen = frame === 2 ? 7 : 9;
+  const rightLen = frame === 1 ? 7 : 9;
+  P(5, 22, 3, leftLen, pal.pants); P(5, 22 + leftLen, 3, 32 - (22 + leftLen), pal.boots);
+  P(9, 22, 3, rightLen, pal.pants); P(9, 22 + rightLen, 3, 32 - (22 + rightLen), pal.boots);
 
-function drawHorseSide(ctx: Ctx, frame: number, pal: HorsePalette, tacked: boolean) {
-  const P = (x: number, y: number, w: number, h: number, col: string) => rect(ctx, x, y, w, h, col);
-  const eat = frame === 3;
-  // tail
-  P(3, 12, 2, 6, pal.mane); P(2, 16, 2, 4, pal.mane);
-  // legs
-  const legs: [number, number][] = [[7, 8], [11, 8], [19, 8], [23, 8]];
-  if (frame === 1) { legs[0][1] = 7; legs[3][1] = 7; }
-  if (frame === 2) { legs[1][1] = 7; legs[2][1] = 7; }
-  for (const [x, len] of legs) { P(x, 19, 3, len, pal.coat); P(x, 18 + len, 3, 1, pal.hoof); }
-  // body
-  P(5, 11, 20, 9, pal.coat); P(6, 10, 18, 1, pal.coat); P(8, 17, 14, 2, pal.light);
-  // neck + head
-  const dy = eat ? 6 : 0;
-  P(22, 6 + dy, 5, 7, pal.coat);
-  P(21, 5 + dy, 6, 2, pal.mane); P(20, 7 + dy, 2, 3, pal.mane);
-  P(25, 4 + dy, 6, 6, pal.coat); P(29, 7 + dy, 3, 3, pal.light); P(28, 6 + dy, 1, 1, pal.hoof); P(26, 2 + dy, 2, 2, pal.coat);
-  if (tacked) { P(11, 9, 8, 3, pal.saddle); P(12, 8, 6, 1, pal.saddleLight); P(14, 12, 2, 8, pal.strap); }
-}
+  // Torso
+  P(4, 13, 8, 9, pal.shirt);
+  P(4, 20, 8, 2, pal.pants); // belt line
+  // Arms, swinging opposite the legs
+  const lArm = frame === 1 ? 14 : 13;
+  const rArm = frame === 2 ? 14 : 13;
+  P(2, lArm, 2, 6, pal.shirt); P(2, lArm + 6, 2, 2, pal.skin);
+  P(12, rArm, 2, 6, pal.shirt); P(12, rArm + 6, 2, 2, pal.skin);
 
-function drawHorseTop(ctx: Ctx, dir: Facing, frame: number, pal: HorsePalette, tacked: boolean) {
-  const P = (x: number, y: number, w: number, h: number, col: string) => rect(ctx, x, y, w, h, col);
-  const step = frame === 1 ? -1 : frame === 2 ? 1 : 0;
-  // legs peeking out at the sides
-  P(9, 10 + step, 2, 3, pal.coat); P(21, 10 - step, 2, 3, pal.coat); P(9, 20 - step, 2, 3, pal.coat); P(21, 20 + step, 2, 3, pal.coat);
-  // body
-  P(11, 8, 10, 16, pal.coat); P(12, 7, 8, 1, pal.coat); P(12, 24, 8, 1, pal.coat); P(12, 11, 2, 10, pal.light);
-  if (dir === 'down') {
-    P(15, 3, 2, 5, pal.mane); // tail at top
-    P(14, 16, 4, 6, pal.mane); // mane
-    P(12, 22, 8, 8, pal.coat); P(13, 27, 6, 3, pal.light); P(11, 21, 2, 2, pal.coat); P(19, 21, 2, 2, pal.coat);
-    P(13, 24, 1, 1, pal.hoof); P(18, 24, 1, 1, pal.hoof);
-    if (tacked) { P(12, 11, 8, 6, pal.saddle); P(13, 11, 6, 1, pal.saddleLight); }
-  } else {
-    P(15, 24, 2, 6, pal.mane); // tail at bottom
-    P(12, 2, 8, 8, pal.coat); P(11, 1, 2, 2, pal.coat); P(19, 1, 2, 2, pal.coat);
-    P(13, 4, 6, 4, pal.mane); P(14, 8, 4, 7, pal.mane);
-    if (tacked) { P(12, 15, 8, 6, pal.saddle); P(13, 15, 6, 1, pal.saddleLight); }
+  // Head
+  P(4, 5, 8, 8, pal.skin);
+  if (back) P(4, 5, 8, 8, pal.hair);
+  else {
+    P(4, 5, 8, 2, pal.hair); // fringe
+    P(3, 6, 1, 5, pal.hair); P(12, 6, 1, 5, pal.hair); // hair at the sides
   }
+  P(5, 13, 6, 1, pal.skin); // neck
+
+  // Hat: crown plus a wide brim, the most readable cowgirl cue at this size.
+  P(5, 0, 6, 4, pal.hat);
+  P(2, 4, 12, 2, pal.hat);
+
+  // Eyes
+  const eye = '#2a1a10';
+  if (dir === 'down') { P(6, 9, 1, 2, eye); P(9, 9, 1, 2, eye); }
+  if (dir === 'left') P(5, 9, 1, 2, eye);
+  if (dir === 'right') P(10, 9, 1, 2, eye);
 }
 
 // ---------------------------------------------------------------------------

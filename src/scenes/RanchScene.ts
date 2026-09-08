@@ -259,7 +259,7 @@ export class RanchScene extends Phaser.Scene {
         toast(r.message);
         if (r.ok) {
           bus.emit(EV.INVENTORY_CHANGED);
-          this.horse.anims.play(`${this.horse.textureKey}-eat-${this.horse.facing}`, true);
+          this.horse.halt();
         }
         break;
       }
@@ -300,7 +300,8 @@ export class RanchScene extends Phaser.Scene {
     this.galloping = false;
     this.horse.setMounted(false);
     this.player.setMounted(false);
-    this.player.setPosition(this.horse.x, this.horse.y + 14);
+    // Step off to the horse's left, clear of its body.
+    this.player.setPosition(this.horse.x - 20, this.horse.y);
     this.player.facing = 'down';
     this.player.halt();
     this.cameras.main.startFollow(this.player, true, 0.12, 0.12);

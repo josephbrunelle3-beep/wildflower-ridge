@@ -1,7 +1,19 @@
 import Phaser from 'phaser';
 import { MAP, SCENE, TEX } from '../config/keys';
-import { DIRS, generatePlaceholders, HORSE_COLS, PERSON_COLS } from '../gfx/PlaceholderTextures';
+import {
+  FACINGS, HORSE_ANIMS, HORSE_FRAME_H, HORSE_FRAME_W, horseAnimKey, horseFrames, type HorseSheet,
+} from '../config/sprites';
+import { DIRS, generatePlaceholders, PERSON_COLS } from '../gfx/PlaceholderTextures';
 import { buildRanchMap } from '../gfx/RanchMap';
+
+/** Texture key per horse sheet variant. */
+const HORSE_SHEETS: Record<HorseSheet, string> = {
+  base: TEX.HORSE,
+  tacked: TEX.HORSE_TACKED,
+};
+
+/** How fast each gait plays, in frames per second. */
+const HORSE_FPS = { idle: 6, walk: 10, gallop: 14 } as const;
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -9,9 +21,9 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Nothing to fetch yet: the map and every texture are built in code below.
-    // Real art goes here later, e.g.:
-    // this.load.spritesheet(TEX.PLAYER, 'assets/sprites/player.png', { frameWidth: 16, frameHeight: 16 });
+    const frame = { frameWidth: HORSE_FRAME_W, frameHeight: HORSE_FRAME_H };
+    this.load.spritesheet(TEX.HORSE, 'assets/sprites/horse-base.png', frame);
+    this.load.spritesheet(TEX.HORSE_TACKED, 'assets/sprites/horse-tacked.png', frame);
   }
 
   create(): void {
@@ -33,19 +45,20 @@ export class BootScene extends Phaser.Scene {
         });
       });
     }
-    for (const tex of [TEX.HORSE, TEX.HORSE_TACKED]) {
-      DIRS.forEach((dir, d) => {
-        const base = d * HORSE_COLS;
-        const walk = [base + 1, base, base + 2, base].map((frame) => ({ key: tex, frame }));
-        this.anims.create({ key: `${tex}-walk-${dir}`, frames: walk, frameRate: 6, repeat: -1 });
-        this.anims.create({ key: `${tex}-gallop-${dir}`, frames: walk, frameRate: 14, repeat: -1 });
-        this.anims.create({
-          key: `${tex}-eat-${dir}`,
-          frames: [base + 3, base + 3, base + 3, base].map((frame) => ({ key: tex, frame })),
-          frameRate: 2,
-          repeat: -1,
-        });
-      });
+
+    for (const sheet of Object.keys(HORSE_SHEETS) as HorseSheet[]) {
+      const key = HORSE_SHEETS[sheet];
+      for (const anim of HORSE_ANIMS) {
+        for (const facing of FACINGS) {
+          const frames = horseFrames(sheet, facing, anim);
+          this.anims.create({
+            key: horseAnimKey(sheet, anim, facing),
+            frames: frames.map((frame) => ({ key, frame })),
+            frameRate: HORSE_FPS[anim],
+            repeat: -1,
+          });
+        }
+      }
     }
   }
 }

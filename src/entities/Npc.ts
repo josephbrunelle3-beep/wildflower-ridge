@@ -14,8 +14,9 @@ export class Npc extends Phaser.Physics.Arcade.Sprite {
     this.displayName = displayName;
     scene.add.existing(this);
     scene.physics.add.existing(this);
+    this.setOrigin(0.5, 1);
     const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setSize(10, 8).setOffset(3, 8);
+    body.setSize(10, 6).setOffset(3, 26);
     body.moves = false;
     this.setImmovable(true);
     this.setDepth(100 + y);
