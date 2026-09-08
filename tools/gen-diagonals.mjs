@@ -49,6 +49,14 @@ const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const onlyIdx = args.indexOf('--only');
 const only = onlyIdx >= 0 ? args[onlyIdx + 1] : null;
+const modelIdx = args.indexOf('--model');
+/**
+ * Defaults to the mini model: the full gpt-image-1 takes well over a minute per image,
+ * which exceeds the 60s ceiling on this network path. Pass --model gpt-image-1 when
+ * running somewhere without that limit.
+ */
+const MODEL = modelIdx >= 0 ? args[modelIdx + 1] : 'gpt-image-1-mini';
+const QUALITY = args.includes('--high') ? 'high' : 'medium';
 
 mkdirSync(OUT_DIR, { recursive: true });
 
@@ -104,10 +112,10 @@ async function generate(target) {
 
   const prompt = `A pixel-art sprite of the same horse as the reference, seen ${target.view}. ${STYLE_BLOCK}`;
   const form = new FormData();
-  form.append('model', 'gpt-image-1');
+  form.append('model', MODEL);
   form.append('prompt', prompt);
   form.append('size', '1024x1024');
-  form.append('quality', 'high');
+  form.append('quality', QUALITY);
   form.append('background', 'transparent');
   form.append('image', new Blob([anchorPng], { type: 'image/png' }), 'anchor.png');
 
@@ -132,7 +140,7 @@ async function generate(target) {
   await sharp(snapped, { raw: { width: FW, height: FH, channels: 4 } })
     .png().toFile(`${OUT_DIR}/sprite-${target.key}.png`);
 
-  console.log(`${target.key}: wrote raw-${target.key}.png and sprite-${target.key}.png`);
+  console.log(`${target.key}: wrote raw-${target.key}.png and sprite-${target.key}.png (${MODEL}, ${QUALITY})`);
 }
 
 for (const t of TARGETS) {
