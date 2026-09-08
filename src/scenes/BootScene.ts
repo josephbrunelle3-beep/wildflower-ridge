@@ -12,6 +12,7 @@ import { buildRanchMap } from '../gfx/RanchMap';
 const HORSE_SHEETS: Record<HorseSheet, string> = {
   base: TEX.HORSE,
   tacked: TEX.HORSE_TACKED,
+  ridden: TEX.HORSE_RIDDEN,
 };
 
 /** How fast each gait plays, in frames per second. */
@@ -26,6 +27,8 @@ export class BootScene extends Phaser.Scene {
     const frame = { frameWidth: HORSE_FRAME_W, frameHeight: HORSE_FRAME_H };
     this.load.spritesheet(TEX.HORSE, 'assets/sprites/horse-base.png', frame);
     this.load.spritesheet(TEX.HORSE_TACKED, 'assets/sprites/horse-tacked.png', frame);
+    // onfe's ridden sheet with our cowgirl painted on; see tools/paint-rider.mjs.
+    this.load.spritesheet(TEX.HORSE_RIDDEN, 'assets/sprites/horse-ridden.png', frame);
     // The jump sheet has taller frames, so it gets its own texture rather than a row.
     this.load.spritesheet(TEX.HORSE_JUMP, 'assets/sprites/horse-jump.png', {
       frameWidth: JUMP_FRAME_W,

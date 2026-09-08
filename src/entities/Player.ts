@@ -44,23 +44,25 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setFrame(personIdleFrame(this.facing));
   }
 
+  /**
+   * Mounted, the rider is drawn as part of the horse's own sheet, so this sprite steps
+   * aside entirely rather than being posed on top of the saddle.
+   */
   setMounted(mounted: boolean): void {
     this.arcadeBody.enable = !mounted;
     this.arcadeBody.setVelocity(0, 0);
     this.anims.stop();
+    this.setVisible(!mounted);
     if (!mounted) this.setRotation(0);
   }
 
   /**
-   * Sit the rider on the saddle, facing the way the horse is going. The horse leans into
-   * turns, so the saddle offset is swung round with her and the rider leans to match -
-   * otherwise she would float upright beside a tilted horse.
+   * Keep the (hidden) player in step with the horse while mounted, so dismounting puts
+   * her down in the right place and facing the right way.
    */
   rideOn(horse: Horse): void {
     this.facing = horse.facing;
-    const off = horse.saddleOffsetY;
-    this.setPosition(horse.x - off * Math.sin(horse.rotation), horse.y + off * Math.cos(horse.rotation));
-    this.setRotation(horse.rotation);
+    this.setPosition(horse.x, horse.y);
     this.setFrame(personIdleFrame(this.facing));
     this.setDepth(horse.depth + 1);
   }

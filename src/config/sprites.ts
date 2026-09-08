@@ -31,6 +31,8 @@ export const JUMP_FRAME_H = 82;
 export const HORSE_SHEET_COLS = {
   base: 9,
   tacked: 9,
+  /** onfe's ridden sheet, with our cowgirl painted onto its rider base. */
+  ridden: 11,
 } as const;
 
 export type HorseSheet = keyof typeof HORSE_SHEET_COLS;
@@ -49,13 +51,27 @@ const ROW_ORDER: Record<Facing, Gait[]> = {
 /** First row of each facing group. */
 const GROUP_START: Record<Facing, number> = { right: 0, left: 5, down: 10, up: 14 };
 
-/** Frames actually drawn per row, measured from the sheets, in ROW_ORDER order. */
+/**
+ * Frames actually drawn per row, measured from the sheets, in ROW_ORDER order. The ridden
+ * sheet has longer idle rows than the riderless ones - the rider fidgets while the horse
+ * stands - so it carries its own counts.
+ */
 const FRAME_COUNTS: Record<Facing, number[]> = {
   right: [9, 8, 9, 8, 6],
   left: [9, 8, 9, 8, 6],
   down: [2, 8, 8, 6],
   up: [1, 8, 8, 6],
 };
+
+const RIDDEN_FRAME_COUNTS: Record<Facing, number[]> = {
+  right: [11, 8, 9, 8, 6],
+  left: [11, 8, 9, 8, 6],
+  down: [4, 8, 8, 6],
+  up: [1, 8, 8, 6],
+};
+
+const countsFor = (sheet: HorseSheet): Record<Facing, number[]> =>
+  sheet === 'ridden' ? RIDDEN_FRAME_COUNTS : FRAME_COUNTS;
 
 /** Head-on views lack a canter row, so canter falls back to trot there. */
 function gaitIndex(facing: Facing, gait: Gait): number {
@@ -69,15 +85,15 @@ export function horseRow(facing: Facing, gait: Gait): number {
   return GROUP_START[facing] + gaitIndex(facing, gait);
 }
 
-export function horseFrameCount(facing: Facing, gait: Gait): number {
-  return FRAME_COUNTS[facing][gaitIndex(facing, gait)];
+export function horseFrameCount(sheet: HorseSheet, facing: Facing, gait: Gait): number {
+  return countsFor(sheet)[facing][gaitIndex(facing, gait)];
 }
 
 /** Absolute frame indices for one animation, in play order. */
 export function horseFrames(sheet: HorseSheet, facing: Facing, gait: Gait): number[] {
   const cols = HORSE_SHEET_COLS[sheet];
   const base = horseRow(facing, gait) * cols;
-  return Array.from({ length: horseFrameCount(facing, gait) }, (_, i) => base + i);
+  return Array.from({ length: horseFrameCount(sheet, facing, gait) }, (_, i) => base + i);
 }
 
 /** The frame shown when the horse is standing still. */

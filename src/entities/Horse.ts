@@ -11,6 +11,7 @@ type Mode = 'idle' | 'wander' | 'eat' | 'mounted';
 const TEXTURE_FOR: Record<HorseSheet, string> = {
   base: TEX.HORSE,
   tacked: TEX.HORSE_TACKED,
+  ridden: TEX.HORSE_RIDDEN,
 };
 
 /** How far the sprite may lean off its drawn direction, in radians. */
@@ -52,11 +53,6 @@ export class Horse extends Phaser.Physics.Arcade.Sprite {
     this.setDepth(100 + this.y);
   }
 
-  /** Where a rider sits, relative to the horse's hooves. */
-  get saddleOffsetY(): number {
-    return this.facing === 'up' || this.facing === 'down' ? -34 : -30;
-  }
-
   get arcadeBody(): Phaser.Physics.Arcade.Body {
     return this.body as Phaser.Physics.Arcade.Body;
   }
@@ -64,12 +60,14 @@ export class Horse extends Phaser.Physics.Arcade.Sprite {
   /**
    * Which of onfe's sheets suits the horse's current state.
    *
-   * Note the 'ridden' sheets are deliberately unused: onfe draws the rider as an
-   * unclothed base for the developer to paint over, so we use the riderless saddled
-   * horse and draw our own dressed rider on top (see Player.rideOn).
+   * Mounted uses the ridden sheet, where the rider is part of the same art: she is posed
+   * and bobs with each gait frame, which a separate sprite sitting on top never did.
+   * onfe draws that rider unclothed as a base to paint over, so tools/paint-rider.mjs
+   * dresses her before the sheet reaches the game.
    */
   get sheet(): HorseSheet {
-    return this.stats.tacked || this.mode === 'mounted' ? 'tacked' : 'base';
+    if (this.mode === 'mounted') return 'ridden';
+    return this.stats.tacked ? 'tacked' : 'base';
   }
 
   get textureKey(): string {
