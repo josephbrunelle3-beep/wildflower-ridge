@@ -3,3 +3,4 @@ dist
 assets/raw/
 *.local
 .DS_Store
+assets/generated/
