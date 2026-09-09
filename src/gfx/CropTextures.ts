@@ -15,18 +15,30 @@ import { TILE_SIZE } from '../config/tiles';
  *   2  withered stalks
  *   3  seed crate
  *   4  shipping crate
- *   5  weeds
+ *   5  weeds, fully grown (level 3, choking)
  *   6  the yard pump
  *   7  wilt overlay, laid over a thirsty crop
- *   8+ crops, four stages each, in CROPS order (see cropFrame)
+ *   8  weeds, level 1 (a few sprouts)
+ *   9  weeds, level 2 (spreading)
+ *  10  the hand cursor for the tending games
+ *  11+ crops, four stages each, in CROPS order (see cropFrame)
  */
 
 type Ctx = CanvasRenderingContext2D;
 
 export const FARM_FRAME = {
-  SOIL_DRY: 0, SOIL_WET: 1, WITHERED: 2, SEED_CRATE: 3, SHIP_CRATE: 4, WEEDS: 5, PUMP: 6, WILT: 7,
+  SOIL_DRY: 0, SOIL_WET: 1, WITHERED: 2, SEED_CRATE: 3, SHIP_CRATE: 4,
+  /** Weeds at level 3: the choking kind. Levels 1 and 2 are the two frames after. */
+  WEEDS: 5, PUMP: 6, WILT: 7, WEEDS_1: 8, WEEDS_2: 9, HAND: 10,
 } as const;
-const FIRST_CROP_FRAME = 8;
+const FIRST_CROP_FRAME = 11;
+
+/** Map frame for a weed level (1..3). */
+export function weedFrame(level: number): number {
+  if (level <= 1) return FARM_FRAME.WEEDS_1;
+  if (level === 2) return FARM_FRAME.WEEDS_2;
+  return FARM_FRAME.WEEDS;
+}
 const FRAME_COUNT = FIRST_CROP_FRAME + CROPS.length * CROP_STAGES;
 
 /** Frame index for a crop at a given drawn stage (0 = just sown, 3 = ripe). */
@@ -141,6 +153,44 @@ function weeds(ctx: Ctx) {
 }
 
 /**
+ * Weeds on the way up. Level 1 is a few sprouts at the edges you could still ignore;
+ * level 2 has them leaning in over the crop. Same olive as the grown weeds so they read
+ * as the same thing getting worse.
+ */
+function weedsSmall(ctx: Ctx, level: 1 | 2) {
+  const WEED = '#7d8a3c';
+  const WEED_DARK = '#5b662a';
+  const WEED_LIGHT = '#9aa84e';
+  const sprouts: [number, number, number][] = level === 1
+    ? [[2, 12, 3], [13, 11, 3], [4, 14, 2]]
+    : [[2, 9, 6], [13, 8, 6], [5, 12, 4], [11, 12, 4]];
+  for (const [x, y, h] of sprouts) {
+    rect(ctx, x, y, 1, h, WEED);
+    rect(ctx, x, y, 1, 1, WEED_LIGHT);
+    rect(ctx, x - 1, y + 2, 1, 1, WEED_DARK);
+    if (level === 2) rect(ctx, x + 1, y + 3, 2, 1, WEED_DARK);
+  }
+}
+
+/** A pointing hand for the close-up games, big enough to see against soil and leaf. */
+function hand(ctx: Ctx) {
+  const SKIN = '#f0c8a0';
+  const SKIN_DARK = '#c9976c';
+  // Palm and fingers, pointing up-left toward the hotspot at (3,3).
+  rect(ctx, 5, 6, 6, 7, SKIN);
+  rect(ctx, 3, 2, 3, 8, SKIN);           // index finger
+  rect(ctx, 3, 2, 3, 1, '#ffe4c8');
+  rect(ctx, 7, 5, 2, 3, SKIN);           // knuckles
+  rect(ctx, 9, 6, 2, 3, SKIN);
+  rect(ctx, 5, 12, 6, 2, SKIN_DARK);     // wrist shadow
+  rect(ctx, 10, 6, 1, 7, SKIN_DARK);
+  // Outline.
+  rect(ctx, 2, 2, 1, 9, INK); rect(ctx, 3, 1, 3, 1, INK); rect(ctx, 6, 2, 1, 4, INK);
+  rect(ctx, 6, 5, 5, 1, INK); rect(ctx, 11, 6, 1, 8, INK); rect(ctx, 4, 13, 7, 1, INK);
+  rect(ctx, 4, 10, 1, 3, INK);
+}
+
+/**
  * The mark of a thirsty square: cracked, sun-baked crust on the soil and a scatter of
  * dropped yellow leaves. The crop itself is tinted sallow by FarmLayer, so the two together
  * read as wilting from a distance.
@@ -227,6 +277,9 @@ function makeFarmSheet(): HTMLCanvasElement {
   at(FARM_FRAME.WEEDS, () => weeds(ctx));
   at(FARM_FRAME.PUMP, () => pump(ctx));
   at(FARM_FRAME.WILT, () => wilt(ctx));
+  at(FARM_FRAME.WEEDS_1, () => weedsSmall(ctx, 1));
+  at(FARM_FRAME.WEEDS_2, () => weedsSmall(ctx, 2));
+  at(FARM_FRAME.HAND, () => hand(ctx));
   CROPS.forEach((crop) => {
     for (let stage = 0; stage < CROP_STAGES; stage++) {
       at(cropFrame(crop.id, stage), () => drawCrop(ctx, crop, stage));

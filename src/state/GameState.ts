@@ -51,15 +51,17 @@ export interface PlotState {
   withered: boolean;
   /** Mornings in a row this square has come up dry. 0 while it is being watered. */
   dryDays: number;
-  /** Weeds have taken the square; nothing grows until they are pulled. */
-  weedy: boolean;
+  /** Weed level, 0 = clean. They grow a level a night and choke the square at the top. */
+  weeds: number;
   /** Days this crop spent dry or choked. Zero at harvest earns a prize crop. */
   neglect: number;
-  /** Days the square has stood bare and weedy, after which the grass takes it back. */
+  /** Days the square has stood bare and choked, after which the grass takes it back. */
   fallowDays: number;
 }
 
 export interface FarmState {
+  /** How far the garden has been expanded; indexes FARM.tiers. */
+  tier: number;
   /** Tilled squares, keyed `x,y` in tile coordinates. */
   plots: Record<string, PlotState>;
   /** Seed packets on hand, by crop id. */
@@ -121,6 +123,7 @@ export function createNewGame(): GameState {
     gold: BALANCE.startGold,
     inventory: { carrots: BALANCE.startCarrots, hay: 0 },
     farm: {
+      tier: 0,
       plots: {},
       seeds: { carrot: 3 },
       produce: {},
