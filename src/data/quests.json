@@ -1,4 +1,5 @@
 [
   { "id": "pasture", "title": "Check on the horses at the north pasture" },
-  { "id": "jasper", "title": "Meet Jasper at the General Store" }
+  { "id": "jasper", "title": "Meet Jasper at the General Store" },
+  { "id": "harvest", "title": "Till a row and raise your first crop" }
 ]

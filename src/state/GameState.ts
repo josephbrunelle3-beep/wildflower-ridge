@@ -1,4 +1,5 @@
 import { BALANCE } from '../config/balance';
+import { FARM } from '../config/crops';
 
 export const SEASONS = ['Spring', 'Summer', 'Fall', 'Winter'] as const;
 export type Facing = 'down' | 'left' | 'right' | 'up';
@@ -36,6 +37,47 @@ export interface HorseState {
   lastGroomDay: number;
 }
 
+/** One tilled square of the kitchen garden. Untilled ground has no entry at all. */
+export interface PlotState {
+  /** Crop id, or null for bare tilled soil. */
+  crop: string | null;
+  /** Watered days accumulated since sowing. */
+  growth: number;
+  /** Watered today? Cleared every morning. */
+  watered: boolean;
+  /** Absolute day the current crop was sown, or -1. */
+  sownDay: number;
+  /** Dead: caught by the turn of the season, or left dry too long. */
+  withered: boolean;
+  /** Mornings in a row this square has come up dry. 0 while it is being watered. */
+  dryDays: number;
+  /** Weed level, 0 = clean. They grow a level a night and choke the square at the top. */
+  weeds: number;
+  /** Days this crop spent dry or choked. Zero at harvest earns a prize crop. */
+  neglect: number;
+  /** Days the square has stood bare and choked, after which the grass takes it back. */
+  fallowDays: number;
+}
+
+export interface FarmState {
+  /** How far the garden has been expanded; indexes FARM.tiers. */
+  tier: number;
+  /** Tilled squares, keyed `x,y` in tile coordinates. */
+  plots: Record<string, PlotState>;
+  /** Seed packets on hand, by crop id. */
+  seeds: Record<string, number>;
+  /** Harvested produce waiting for the shipping crate, by crop id. */
+  produce: Record<string, number>;
+  /** Lifetime count of crops harvested, for the quest and for flavour. */
+  harvested: number;
+  /** Prize crops raised without a single dry or weedy day. */
+  prizes: number;
+  /** Waterings left in the bucket. Refilled at the pump in the yard. */
+  water: number;
+  /** Did it rain last night? Set each morning; the garden waters itself when it did. */
+  rained: boolean;
+}
+
 export interface PlayerState {
   x: number;
   y: number;
@@ -51,6 +93,7 @@ export interface GameState {
   time: TimeState;
   gold: number;
   inventory: { carrots: number; hay: number };
+  farm: FarmState;
   quests: Record<string, QuestStatus>;
   flags: Record<string, boolean>;
   selectedSlot: number;
@@ -79,6 +122,16 @@ export function createNewGame(): GameState {
     time: { year: 1, season: 0, day: 12, minutes: 18 * 60 + 40 },
     gold: BALANCE.startGold,
     inventory: { carrots: BALANCE.startCarrots, hay: 0 },
+    farm: {
+      tier: 0,
+      plots: {},
+      seeds: { carrot: 3 },
+      produce: {},
+      harvested: 0,
+      prizes: 0,
+      water: FARM.care.bucketCapacity,
+      rained: false,
+    },
     quests: {},
     flags: {},
     selectedSlot: 4,

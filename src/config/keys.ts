@@ -8,6 +8,7 @@ export const TEX = {
   HORSE_RIDDEN: 'horse-ridden',
   HORSE_JUMP: 'horse-jump',
   ICONS: 'icons',
+  FARM: 'farm',
   MINIMAP: 'minimap',
 } as const;
 

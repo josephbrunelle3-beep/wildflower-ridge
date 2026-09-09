@@ -3,15 +3,16 @@ import { createNewGame } from '../src/state/GameState';
 import { activeQuests, allQuestsDone, completeQuest, initQuests } from '../src/systems/QuestSystem';
 
 describe('QuestSystem', () => {
-  it('starts with both mockup quests active and completes each once', () => {
+  it('starts with every quest active and completes each once', () => {
     const s = createNewGame();
     initQuests(s);
-    expect(activeQuests(s).map((q) => q.id)).toEqual(['pasture', 'jasper']);
+    expect(activeQuests(s).map((q) => q.id)).toEqual(['pasture', 'jasper', 'harvest']);
     expect(completeQuest(s, 'pasture')).toBe(true);
     expect(completeQuest(s, 'pasture')).toBe(false);
-    expect(activeQuests(s).map((q) => q.id)).toEqual(['jasper']);
+    expect(activeQuests(s).map((q) => q.id)).toEqual(['jasper', 'harvest']);
     expect(allQuestsDone(s)).toBe(false);
     completeQuest(s, 'jasper');
+    completeQuest(s, 'harvest');
     expect(allQuestsDone(s)).toBe(true);
   });
 

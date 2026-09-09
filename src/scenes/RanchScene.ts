@@ -7,6 +7,8 @@ import { G } from '../core/Session';
 import { Horse } from '../entities/Horse';
 import { Npc } from '../entities/Npc';
 import { Player } from '../entities/Player';
+import { FarmLayer } from '../gfx/FarmLayer';
+import { advanceDay, dayReportMessage } from '../systems/FarmingSystem';
 import {
   brush, canGallop, canRide, drainGallop, feed, groom, pet, tack, applyHourlyDecay, type CareAction,
 } from '../systems/HorseCareSystem';
@@ -22,6 +24,7 @@ export class RanchScene extends Phaser.Scene {
   private player!: Player;
   private horse!: Horse;
   private npc!: Npc;
+  private farm!: FarmLayer;
   private clock!: TimeSystem;
   private keys!: Keys;
   private slotKeys: Phaser.Input.Keyboard.Key[] = [];
@@ -43,7 +46,7 @@ export class RanchScene extends Phaser.Scene {
     // --- Map ---------------------------------------------------------------
     const map = this.make.tilemap({ key: MAP.RANCH });
     const tiles = map.addTilesetImage('tiles', TEX.TILES)!;
-    map.createLayer('ground', tiles)!.setDepth(0);
+    const ground = map.createLayer('ground', tiles)!.setDepth(0);
     const decor = map.createLayer('decor', tiles)!.setDepth(1);
     decor.setCollision(SOLID_TILES.map((i) => i + 1));
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
@@ -73,6 +76,10 @@ export class RanchScene extends Phaser.Scene {
 
     const js = center(find('jasper'));
     this.npc = new Npc(this, js.x, js.y, TEX.NPC_JASPER, 'jasper', 'Jasper');
+
+    this.farm = new FarmLayer(this, ground, decor, this.interactions);
+    this.physics.add.collider(this.player, this.farm.solids);
+    this.physics.add.collider(this.horse, this.farm.solids);
 
     this.physics.add.collider(this.player, decor);
     // A jumping horse passes over low obstacles. Everything else in the decor layer -
@@ -119,6 +126,7 @@ export class RanchScene extends Phaser.Scene {
     this.unsubs.push(
       bus.on(EV.CARE_ACTION, (action: CareAction) => this.onCareAction(action)),
       bus.on(EV.DIALOGUE_END, (npcId: string, end: string) => this.onDialogueEnd(npcId, end)),
+      bus.on(EV.TIME_SPEND, (minutes: number) => this.clock.spend(minutes)),
       bus.on(EV.SAVE_REQUEST, () => this.saveNow(true)),
       bus.on(EV.QUIT_TO_TITLE, () => this.quitToTitle()),
     );
@@ -192,6 +200,8 @@ export class RanchScene extends Phaser.Scene {
       if (target && JD(k.E)) target.interact();
     }
 
+    if (isQuestActive(state, 'harvest') && state.farm.harvested > 0) this.finishQuest('harvest');
+
     if (this.pastureZone && isQuestActive(state, 'pasture') && this.pastureZone.contains(this.player.x, this.player.y)) {
       this.finishQuest('pasture');
     }
@@ -257,7 +267,15 @@ export class RanchScene extends Phaser.Scene {
       bus.emit(EV.HORSE_CHANGED);
       bus.emit(EV.TIME_HOUR, tick.hours);
     }
-    if (tick.days > 0) bus.emit(EV.TIME_DAY, state.time);
+    if (tick.days > 0) {
+      // advanceDay rolls its own weather per night and records it on the farm state.
+      const report = advanceDay(state, tick.days);
+      bus.emit(EV.FARM_CHANGED);
+      bus.emit(EV.INVENTORY_CHANGED);
+      const line = dayReportMessage(report);
+      if (line) this.time.delayedCall(1400, () => bus.emit(EV.TOAST, line));
+      bus.emit(EV.TIME_DAY, state.time);
+    }
   }
 
   private onCareAction(action: CareAction): void {

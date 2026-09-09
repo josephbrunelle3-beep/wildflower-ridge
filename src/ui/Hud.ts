@@ -49,6 +49,7 @@ export class Hud {
 
     this.unsubs.push(
       bus.on(EV.TIME_MINUTE, () => this.refreshTime()),
+      bus.on(EV.TIME_DAY, () => this.refreshTime()),
       bus.on(EV.GOLD_CHANGED, () => this.refreshGold()),
       bus.on(EV.QUEST_CHANGED, () => this.refreshQuests()),
     );
@@ -58,7 +59,9 @@ export class Hud {
   }
 
   refreshTime(): void {
-    this.dateText.setText(formatDate(G.state.time));
+    // The garden waters itself on a wet night, so the weather belongs on the clock panel.
+    const wet = G.state.farm.rained ? '  ·  Rain' : '';
+    this.dateText.setText(`${formatDate(G.state.time)}${wet}`);
     this.clockText.setText(formatClock(G.state.time));
   }
 

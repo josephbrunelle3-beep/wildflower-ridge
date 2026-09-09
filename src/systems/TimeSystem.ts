@@ -91,6 +91,13 @@ export class TimeSystem {
     this.onTick(advanceTime(this.state, mins));
   }
 
+  /** Put a chunk of minutes on the clock, for work that takes real time (field work). */
+  spend(minutes: number): TimeTick {
+    const tick = advanceTime(this.state, Math.max(0, Math.round(minutes)));
+    this.onTick(tick);
+    return tick;
+  }
+
   sleep(): TimeTick {
     this.acc = 0;
     const tick = sleepUntilMorning(this.state);

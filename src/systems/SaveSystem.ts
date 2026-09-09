@@ -1,4 +1,17 @@
-import { createNewGame, SAVE_VERSION, type GameState } from '../state/GameState';
+import { createNewGame, SAVE_VERSION, type GameState, type PlotState } from '../state/GameState';
+
+/** Defaults for a garden square, so older saves gain the care fields on load. */
+const FRESH_PLOT: PlotState = {
+  crop: null, growth: 0, watered: false, sownDay: -1, withered: false,
+  dryDays: 0, weeds: 0, neglect: 0, fallowDays: 0,
+};
+
+/** Squares saved when weeds were a yes/no come back as fully grown weeds. */
+function migratePlot(plot: Partial<PlotState> & { weedy?: boolean }): PlotState {
+  const { weedy, ...rest } = plot;
+  const weeds = typeof rest.weeds === 'number' ? rest.weeds : weedy ? 3 : 0;
+  return { ...FRESH_PLOT, ...rest, weeds };
+}
 
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -73,6 +86,16 @@ function migrate(parsed: Partial<GameState> & { version?: number }): GameState {
     time: { ...fresh.time, ...(parsed.time ?? {}) },
     gold: typeof parsed.gold === 'number' ? parsed.gold : fresh.gold,
     inventory: { ...fresh.inventory, ...(parsed.inventory ?? {}) },
+    farm: {
+      ...fresh.farm,
+      ...(parsed.farm ?? {}),
+      // Squares saved before crops could wilt or go weedy need the care fields filling in.
+      plots: Object.fromEntries(
+        Object.entries(parsed.farm?.plots ?? {}).map(([key, plot]) => [key, migratePlot(plot)]),
+      ),
+      seeds: { ...(parsed.farm?.seeds ?? fresh.farm.seeds) },
+      produce: { ...(parsed.farm?.produce ?? {}) },
+    },
     quests: { ...(parsed.quests ?? {}) },
     flags: { ...(parsed.flags ?? {}) },
     selectedSlot: typeof parsed.selectedSlot === 'number' ? parsed.selectedSlot : fresh.selectedSlot,
