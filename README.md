@@ -33,19 +33,32 @@ three upgrades take it to 6 × 4. A small garden tended well beats a big one hal
 
 Press **E** at a square to work it: bare ground gets turned over, tilled soil opens the
 sowing list, and a growing plant opens its **plant card** — a close-up with how it is doing
-and what you can do about it. Each choice on the card is a short game:
+and what you can do about it. Each choice on the card is a short piece of real garden work,
+played close up with the mouse or the arrow keys:
 
-- **Watering** — hold to pour, let go in the green. Under leaves the row dry for another go;
-  over soaks it, which counts as watered but not as cared for. Every pour costs a bucket
-  charge (twelve to a bucket, refilled at the pump).
-- **Weeding** — pull each weed by the root clump at its foot. Grab the stalk and it snaps
-  off short; grab the crop and you tear a leaf.
-- **Harvesting** — the pieces colour up one after another and hold ripe for a moment. Pick
-  each one while it is bright; green bruises, brown is lost. What you pick is what you get.
+- **Watering** — a cut through the row, the plant's roots reaching down. Hold to pour and
+  the wet front sinks through the soil; let go when it reaches the root tips. Short, and the
+  roots stay dry for another go; long, and the soil waterlogs — watered, but not cared for.
+  Seedlings root shallow and deepen as they grow, and shallow-rooted grass wants a lighter
+  soak than a taproot. Every pour costs a bucket charge (twelve to a bucket, refilled at the
+  pump).
+- **Weeding** — pull each weed by the root clump at its foot and it comes out roots and all.
+  Grab the stalk and it snaps off short; grab the crop and you tear a leaf. Damp soil after
+  rain or a watering gives the roots up more easily.
+- **Harvesting** — look the plant over. Full colour and plump is ready; green at the shoulder
+  is not; dull and spotted has gone over. Take hold of a ready piece and ease it off with a
+  steady pull, letting go as it comes free — yank and the stem snaps, grab green and it
+  bruises. What is on the plant is a record of how it was kept: a plant that was never
+  stressed ripens evenly, each slip-up leaves a piece behind, and every night it stands
+  past ripe sends another piece over.
 
 Each crop has a temperament — *easy going*, *particular* or *fussy* — and it sets the
-games: how narrow the pouring mark is, how many weeds crowd in and how close, how briefly
-the fruit stays ripe. Field work takes real time off the clock.
+work: how much room there is either side of the roots, how many weeds crowd in and how close,
+how forgiving the pull is and how well an under-ripe piece hides it. Field work takes real
+time off the clock.
+
+Sounds are small and synthesised — water running, a root giving, a stem snapping, a quiet
+chime for a job done right — and there is a **Sound** toggle in the pause menu.
 
 **Crops need looking after.** Growth is counted in *watered days*, so a row only comes on
 when you water it. Miss a morning and it wilts — the soil cracks and the plant goes sallow —
@@ -54,8 +67,8 @@ and at full size choke the square until pulled; bare soil left choked goes back 
 The turn of the season kills anything still standing out of its months. Rain overnight
 waters the whole garden for you.
 
-Bring a crop in with no dry day, no choking, no torn leaf and every piece picked, and it is
-a **prize crop** — twice the basket.
+Bring a crop in with no dry day, no choking, no torn leaf and every ready piece picked
+clean, and it is a **prize crop** — twice the basket.
 
 Carrots and timothy grass go straight into the barn as treats and hay for Star; everything
 else goes in the shipping crate for gold.
@@ -106,7 +119,7 @@ Append `?st=1` to the URL to run the game loop on timers instead of requestAnima
 src/main.ts              Phaser config and boot
 src/config/              keys, tile catalogue, balance tunables, the crop table
 src/state/GameState.ts   the single serialisable save state
-src/core/                EventBus (scene <-> HUD messaging), Session (live state)
+src/core/                EventBus (scene <-> HUD messaging), Session (live state), Sfx (synthesised sounds)
 src/systems/             Phaser-free logic: time, horse care, farming, quests, saves, economy, interaction
 src/systems/minigames/   the tending games' rules (watering, weeding, harvest) and per-crop tuning
 src/entities/            Player, Horse, Npc sprites

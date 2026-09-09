@@ -15,25 +15,44 @@ describe('tuning', () => {
   it('makes fussier crops harder in every game', () => {
     const easy = CROP_BY_ID.carrot;   // difficulty 1
     const hard = CROP_BY_ID.pumpkin;  // difficulty 3
-    expect(wateringParams(hard).zoneWidth).toBeLessThan(wateringParams(easy).zoneWidth);
-    expect(wateringParams(hard).fillPerSec).toBeGreaterThan(wateringParams(easy).fillPerSec);
-    expect(weedingParams(hard, 1).count).toBeGreaterThan(weedingParams(easy, 1).count);
-    expect(weedingParams(hard, 1).baseRadius).toBeLessThan(weedingParams(easy, 1).baseRadius);
-    expect(weedingParams(hard, 1).minPlantGap).toBeLessThan(weedingParams(easy, 1).minPlantGap);
-    expect(harvestParams(hard).ripeWindowSecs).toBeLessThan(harvestParams(easy).ripeWindowSecs);
+    const w = (c: typeof easy) => wateringParams(c, 1, () => 0.5);
+    expect(w(hard).zoneHi - w(hard).zoneLo).toBeLessThan(w(easy).zoneHi - w(easy).zoneLo);
+    expect(w(hard).fillPerSec).toBeGreaterThan(w(easy).fillPerSec);
+    expect(weedingParams(hard, 1, false).count).toBeGreaterThan(weedingParams(easy, 1, false).count);
+    expect(weedingParams(hard, 1, false).baseRadius).toBeLessThan(weedingParams(easy, 1, false).baseRadius);
+    expect(weedingParams(hard, 1, false).minPlantGap).toBeLessThan(weedingParams(easy, 1, false).minPlantGap);
+    const spread = { ripe: 2, under: 0, over: 0 };
+    expect(harvestParams(hard, spread).window).toBeLessThan(harvestParams(easy, spread).window);
+    expect(harvestParams(hard, spread).subtlety).toBeGreaterThan(harvestParams(easy, spread).subtlety);
   });
 
-  it('weeds left longer mean more to pull', () => {
+  it('waters to the roots: seedlings shallow, grown plants deep, the band on the root tips', () => {
     const crop = CROP_BY_ID.carrot;
-    expect(weedingParams(crop, 3).count).toBeGreaterThan(weedingParams(crop, 1).count);
+    const seedling = wateringParams(crop, 0, () => 0.5);
+    const grown = wateringParams(crop, 1, () => 0.5);
+    expect(seedling.rootDepth).toBeLessThan(grown.rootDepth);
+    expect(grown.rootDepth).toBeCloseTo(crop.rootDepth);
+    for (const p of [seedling, grown]) {
+      expect(p.zoneLo).toBeLessThan(p.rootDepth);
+      expect(p.zoneHi).toBeGreaterThan(p.rootDepth);
+      expect(p.zoneHi).toBeLessThanOrEqual(0.97);
+    }
+    // Shallow-rooted grass wants a shallower soak than a taproot.
+    expect(wateringParams(CROP_BY_ID.timothy, 1, () => 0.5).rootDepth).toBeLessThan(grown.rootDepth);
+  });
+
+  it('weeds left longer mean more to pull, and damp soil gives them up more easily', () => {
+    const crop = CROP_BY_ID.carrot;
+    expect(weedingParams(crop, 3, false).count).toBeGreaterThan(weedingParams(crop, 1, false).count);
+    expect(weedingParams(crop, 1, true).baseRadius).toBeGreaterThan(weedingParams(crop, 1, false).baseRadius);
   });
 });
 
 describe('WateringModel', () => {
-  const params = wateringParams(CROP_BY_ID.carrot);
+  const params = wateringParams(CROP_BY_ID.carrot, 1, () => 0.5);
 
   it('fills only while pouring and settles the verdict when you let go', () => {
-    const m = new WateringModel(params, () => 0.5);
+    const m = new WateringModel(params);
     m.update(1);
     expect(m.level).toBe(0);
     m.startPour();
@@ -48,39 +67,30 @@ describe('WateringModel', () => {
     expect(m.verdict).toBe('under');
   });
 
-  it('is perfect inside the zone and over past it', () => {
-    const perfect = new WateringModel(params, () => 0);
+  it('is perfect at the roots and over past them', () => {
+    const perfect = new WateringModel(params);
     perfect.startPour();
     while (perfect.level < perfect.zoneLo + (perfect.zoneHi - perfect.zoneLo) / 2) perfect.update(0.01);
     expect(perfect.stopPour()).toBe('perfect');
 
-    const over = new WateringModel(params, () => 0);
+    const over = new WateringModel(params);
     over.startPour();
     while (over.level <= over.zoneHi) over.update(0.01);
     expect(over.stopPour()).toBe('over');
   });
 
-  it('spills over on its own if you never let go', () => {
-    const m = new WateringModel(params, () => 0);
+  it('waterlogs on its own if you never let go', () => {
+    const m = new WateringModel(params);
     m.startPour();
     m.update(60);
     expect(m.level).toBe(1);
     expect(m.verdict).toBe('over');
     expect(m.pouring).toBe(false);
   });
-
-  it('places the sweet spot inside the bar', () => {
-    for (const r of [0, 0.5, 1]) {
-      const m = new WateringModel(params, () => r);
-      expect(m.zoneLo).toBeGreaterThanOrEqual(params.zoneMin);
-      expect(m.zoneHi).toBeLessThanOrEqual(1);
-      expect(m.zoneHi - m.zoneLo).toBeCloseTo(params.zoneWidth);
-    }
-  });
 });
 
 describe('WeedingModel', () => {
-  const params = weedingParams(CROP_BY_ID.carrot, 2);
+  const params = weedingParams(CROP_BY_ID.carrot, 2, false);
 
   it('lays the weeds out either side of the plant, clear of its canopy', () => {
     const m = new WeedingModel(params, seq(0.5));
@@ -125,38 +135,60 @@ describe('WeedingModel', () => {
 });
 
 describe('HarvestModel', () => {
-  const params = harvestParams(CROP_BY_ID.tomato);
+  const params = harvestParams(CROP_BY_ID.tomato, { ripe: 2, under: 1, over: 1 });
+  const find = (m: HarvestModel, ripeness: string) => m.pieces.find((p) => p.ripeness === ripeness && p.state === 'onPlant')!;
 
-  it('colours the pieces up one after another and lets them go over', () => {
+  it('puts what the plant has to offer on the plant, shuffled', () => {
     const m = new HarvestModel(params, 'top', seq(0.5));
-    expect(m.pieces).toHaveLength(params.items);
-    expect(m.pieces.every((p) => p.state === 'green')).toBe(true);
-    m.update(0.4 + params.ripenSecs + 0.01);
-    expect(m.pieces.filter((p) => p.state === 'ripe')).toHaveLength(1);
-    m.update(params.ripeWindowSecs);
-    expect(m.pieces.filter((p) => p.state === 'over')).toHaveLength(1);
+    expect(m.pieces).toHaveLength(4);
+    expect(m.pieces.filter((p) => p.ripeness === 'ripe')).toHaveLength(2);
+    expect(m.pieces.filter((p) => p.ripeness === 'under')).toHaveLength(1);
+    expect(m.pieces.filter((p) => p.ripeness === 'over')).toHaveLength(1);
+    expect(m.ripeLeft).toBe(2);
+    expect(m.done).toBe(false);
   });
 
-  it('picks ripe, bruises green, and loses what went over', () => {
+  it('a steady pull released as it comes free picks the piece; early leaves it; yanking snaps it', () => {
     const m = new HarvestModel(params, 'top', seq(0.5));
-    const first = m.pieces.reduce((a, b) => (a.age > b.age ? a : b));
-    const last = m.pieces.reduce((a, b) => (a.age < b.age ? a : b));
-    expect(m.pick(last.x, last.y)).toBe('early');
-    expect(last.state).toBe('bruised');
+    const ripe = find(m, 'ripe');
+    expect(m.grab(ripe.x, ripe.y)).toBe('held');
+    expect(m.grab(ripe.x, ripe.y)).toBe('miss');          // hands are full
+    m.update(0.2);
+    expect(m.release()).toBe('early');
+    expect(ripe.state).toBe('onPlant');
 
-    m.update(0.4 + params.ripenSecs + 0.01);
-    expect(m.pick(first.x, first.y)).toBe('picked');
+    expect(m.grab(ripe.x, ripe.y)).toBe('held');
+    m.update(params.pullSecs);                             // exactly free
+    expect(m.release()).toBe('picked');
     expect(m.picked).toBe(1);
-    expect(m.pick(first.x, first.y)).toBe('miss'); // already in the basket
 
-    m.update(100);
-    const stillThere = m.pieces.find((p) => p.state === 'over')!;
-    expect(m.pick(stillThere.x, stillThere.y)).toBe('late');
-    expect(m.done).toBe(true);
+    const other = find(m, 'ripe');
+    m.grab(other.x, other.y);
+    let outcome = null;
+    for (let i = 0; i < 100 && !outcome; i++) outcome = m.update(0.05);
+    expect(outcome).toBe('snapped');
+    expect(other.state).toBe('lost');
+    expect(other.lostHow).toBe('snapped');
+    expect(m.done).toBe(true);                             // no ready piece left
+  });
+
+  it('a green piece bruises when picked; an over-ripe one comes away as mush', () => {
+    const m = new HarvestModel(params, 'top', seq(0.5));
+    const under = find(m, 'under');
+    m.grab(under.x, under.y);
+    m.update(params.pullSecs);
+    expect(m.release()).toBe('unripe');
+    expect(under.state).toBe('lost');
+
+    const over = find(m, 'over');
+    m.grab(over.x, over.y);
+    expect(m.release()).toBe('over');
+    expect(over.state).toBe('lost');
+    expect(m.picked).toBe(0);
   });
 
   it('roots sit along the soil line, fruit hangs in the canopy', () => {
-    const roots = new HarvestModel(harvestParams(CROP_BY_ID.carrot), 'ground', seq(0.5));
+    const roots = new HarvestModel(harvestParams(CROP_BY_ID.carrot, { ripe: 3, under: 0, over: 0 }), 'ground', seq(0.5));
     const fruit = new HarvestModel(params, 'top', seq(0.5));
     expect(Math.max(...fruit.pieces.map((p) => p.y))).toBeLessThan(Math.min(...roots.pieces.map((p) => p.y)));
   });

@@ -46,6 +46,12 @@ export interface CropDef {
   difficulty: 1 | 2 | 3;
   /** Pieces on the plant at harvest - each one picked in the harvest game is one crop. */
   harvestItems: number;
+  /**
+   * How far down a grown plant's roots reach, as a fraction of the soil profile shown in
+   * the watering close-up. Deep roots want a long soak; shallow ones drown easily. A
+   * seedling's roots are a fraction of this and deepen as it grows.
+   */
+  rootDepth: number;
   blurb: string;
 }
 
@@ -53,32 +59,32 @@ export const CROPS: CropDef[] = [
   {
     id: 'carrot', name: 'Carrots', seasons: [SPRING, FALL], days: 4, seedCost: 12, sellPrice: 30,
     feeds: 'carrot', leaf: '#5f9c46', leafDark: '#3f7330', fruit: '#e8843a', fruitDark: '#c05f22',
-    fruitAt: 'ground', difficulty: 1, harvestItems: 3, blurb: "Four days to Star's favourite treat.",
+    fruitAt: 'ground', difficulty: 1, harvestItems: 3, rootDepth: 0.72, blurb: "Four days to Star's favourite treat.",
   },
   {
     id: 'timothy', name: 'Timothy Grass', seasons: [SPRING, SUMMER], days: 5, seedCost: 15, sellPrice: 22,
     feeds: 'hay', leaf: '#9cb054', leafDark: '#7a8c3c', fruit: '#d4ad4a', fruitDark: '#ab8a33',
-    fruitAt: 'top', difficulty: 1, harvestItems: 2, blurb: 'Cut and dried, it is a winter of hay.',
+    fruitAt: 'top', difficulty: 1, harvestItems: 2, rootDepth: 0.38, blurb: 'Cut and dried, it is a winter of hay.',
   },
   {
     id: 'sweetpea', name: 'Sweet Peas', seasons: [SPRING], days: 6, seedCost: 20, sellPrice: 60,
     leaf: '#6aa855', leafDark: '#487a3a', fruit: '#e07fb0', fruitDark: '#b8558a',
-    fruitAt: 'top', difficulty: 2, harvestItems: 3, blurb: 'The ridge sells them by the jar-full.',
+    fruitAt: 'top', difficulty: 2, harvestItems: 3, rootDepth: 0.5, blurb: 'The ridge sells them by the jar-full.',
   },
   {
     id: 'tomato', name: 'Tomatoes', seasons: [SUMMER], days: 7, regrowDays: 3, seedCost: 30, sellPrice: 55,
     leaf: '#5a9440', leafDark: '#3d6b2c', fruit: '#d4402f', fruitDark: '#a72d20',
-    fruitAt: 'top', difficulty: 2, harvestItems: 4, blurb: 'Bears again three days after picking.',
+    fruitAt: 'top', difficulty: 2, harvestItems: 4, rootDepth: 0.66, blurb: 'Bears again three days after picking.',
   },
   {
     id: 'corn', name: 'Corn', seasons: [SUMMER, FALL], days: 8, regrowDays: 4, seedCost: 35, sellPrice: 70,
     leaf: '#78a83f', leafDark: '#557c2c', fruit: '#f0c94a', fruitDark: '#c69c2e',
-    fruitAt: 'top', difficulty: 3, harvestItems: 2, blurb: 'Stands through two seasons and keeps cropping.',
+    fruitAt: 'top', difficulty: 3, harvestItems: 2, rootDepth: 0.7, blurb: 'Stands through two seasons and keeps cropping.',
   },
   {
     id: 'pumpkin', name: 'Pumpkins', seasons: [FALL], days: 9, seedCost: 45, sellPrice: 170,
     leaf: '#4f8c3c', leafDark: '#356028', fruit: '#e0761f', fruitDark: '#b05412',
-    fruitAt: 'ground', difficulty: 3, harvestItems: 1, blurb: 'Slow, greedy, and worth every day of it.',
+    fruitAt: 'ground', difficulty: 3, harvestItems: 1, rootDepth: 0.58, blurb: 'Slow, greedy, and worth every day of it.',
   },
 ];
 

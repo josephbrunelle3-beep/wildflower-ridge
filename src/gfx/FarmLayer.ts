@@ -4,11 +4,12 @@ import { TEX } from '../config/keys';
 import { TILE, TILE_SIZE } from '../config/tiles';
 import { bus, EV } from '../core/EventBus';
 import { G } from '../core/Session';
+import { Sfx } from '../core/Sfx';
 import type { InteractionSystem } from '../systems/InteractionSystem';
 import {
   activePlot, applyHarvest, applyWatering, applyWeeding, buySeeds, canWater, clear, cropOf, describePlot,
-  expandGarden, growthStage, isWilting, nextTier, plantableSeeds, plant, plotAt, plotKey, produceCount,
-  produceValue, refillBucket, seedPacketCost, sellProduce, stageOf, till, type FarmResult,
+  expandGarden, growthStage, harvestSpread, isWilting, nextTier, plantableSeeds, plant, plotAt, plotKey,
+  produceCount, produceValue, refillBucket, seedPacketCost, sellProduce, soilDamp, stageOf, till, type FarmResult,
 } from '../systems/FarmingSystem';
 import { harvestParams, wateringParams, weedingParams } from '../systems/minigames/tuning';
 import { FARM_FRAME, cropFrame, generateFarmTextures, weedFrame } from './CropTextures';
@@ -251,24 +252,27 @@ export class FarmLayer {
         break;
       }
       case 'wild':
-        this.apply(till(state, tx, ty));
+        this.apply(till(state, tx, ty), 'dig');
         break;
       case 'tilled':
         if (plotState!.weeds > 0) this.openWeeding(tx, ty);
         else this.openSowMenu(tx, ty);
         break;
       case 'withered':
-        this.apply(clear(state, tx, ty));
+        this.apply(clear(state, tx, ty), 'pull');
         break;
       default:
+        Sfx.play('tick');
         bus.emit(EV.SHOP_OPEN, this.plantCard(tx, ty));
     }
   }
 
-  /** Toast the outcome, redraw, and put the time the work took on the clock. */
-  private apply(result: FarmResult): void {
+  /** Toast the outcome, redraw, sound it, and put the time the work took on the clock. */
+  private apply(result: FarmResult, sound?: Parameters<typeof Sfx.play>[0]): void {
     toast(result.message);
     if (!result.ok) return;
+    if (sound) Sfx.play(sound);
+    if (result.message.startsWith('Prize')) Sfx.play('prize');
     bus.emit(EV.FARM_CHANGED);
     bus.emit(EV.INVENTORY_CHANGED);
     if (result.minutes) bus.emit(EV.TIME_SPEND, result.minutes);
@@ -311,9 +315,10 @@ export class FarmLayer {
         });
       }
       if (ripe) {
+        const spread = harvestSpread(plotState);
         rows.push({
           label: 'Harvest',
-          detail: `${crop.harvestItems} ${crop.harvestItems === 1 ? 'piece' : 'pieces'}${plotState.neglect === 0 ? '  ·  prize if clean' : ''}`,
+          detail: `${spread.ripe} of ${crop.harvestItems} ready${plotState.neglect === 0 ? '  ·  prize if clean' : ''}`,
           onSelect: () => {
             this.openHarvest(tx, ty);
             return false;
@@ -355,7 +360,8 @@ export class FarmLayer {
       kind: 'watering',
       crop,
       stageFrame: cropFrame(crop.id, growthStage(plotState)),
-      params: wateringParams(crop),
+      // Roots deepen as the plant grows, so a seedling wants a shallower soak.
+      params: wateringParams(crop, plotState.growth / crop.days),
       onDone: (verdict) => this.apply(applyWatering(state, tx, ty, verdict)),
     };
     bus.emit(EV.MINIGAME_OPEN, spec);
@@ -369,7 +375,7 @@ export class FarmLayer {
     // Bare soil has nothing to tear, so the weeds are judged against the easiest crop and
     // the plant is left out of the close-up.
     const judge: CropDef = crop ?? CROPS[0];
-    const params = weedingParams(judge, plotState.weeds);
+    const params = weedingParams(judge, plotState.weeds, soilDamp(state, plotState));
     const spec: MiniGameSpec = {
       kind: 'weeding',
       crop: judge,
@@ -389,7 +395,8 @@ export class FarmLayer {
       kind: 'harvest',
       crop,
       stageFrame: cropFrame(crop.id, growthStage(plotState)),
-      params: harvestParams(crop),
+      // What is ready on the plant is a record of how it was kept.
+      params: harvestParams(crop, harvestSpread(plotState)),
       onDone: (bagged) => this.apply(applyHarvest(state, tx, ty, bagged)),
     };
     bus.emit(EV.MINIGAME_OPEN, spec);
@@ -412,7 +419,7 @@ export class FarmLayer {
         detail: `×${state.farm.seeds[crop.id] ?? 0}  ·  ${crop.days}d  ·  ${['easy', 'particular', 'fussy'][crop.difficulty - 1]}`,
         disabled: !inSeason(crop, state.time.season),
         onSelect: () => {
-          this.apply(plant(state, tx, ty, crop.id));
+          this.apply(plant(state, tx, ty, crop.id), 'sow');
           return false;
         },
       })),

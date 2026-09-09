@@ -3,8 +3,10 @@ import type { WateringParams } from './tuning';
 export type WateringVerdict = 'under' | 'perfect' | 'over';
 
 /**
- * Hold to pour, let go in the sweet spot. The bar fills while `pouring` is true; letting go
- * settles the verdict, and filling right to the top spills over without waiting for you.
+ * Hold to pour, let go when the water has soaked down to the roots. `level` is how far
+ * down the soil profile the wet front has reached; it sinks while `pouring` is true.
+ * Letting go settles the verdict, and soaking right to the bottom waterlogs the square
+ * without waiting for you.
  */
 export class WateringModel {
   level = 0;
@@ -12,12 +14,13 @@ export class WateringModel {
   verdict: WateringVerdict | null = null;
   readonly zoneLo: number;
   readonly zoneHi: number;
+  readonly rootDepth: number;
   private readonly fillPerSec: number;
 
-  constructor(params: WateringParams, random: () => number = Math.random) {
-    const span = Math.max(0, params.zoneMax - params.zoneMin);
-    this.zoneLo = params.zoneMin + random() * span;
-    this.zoneHi = Math.min(1, this.zoneLo + params.zoneWidth);
+  constructor(params: WateringParams) {
+    this.zoneLo = params.zoneLo;
+    this.zoneHi = params.zoneHi;
+    this.rootDepth = params.rootDepth;
     this.fillPerSec = params.fillPerSec;
   }
 

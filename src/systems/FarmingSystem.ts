@@ -70,6 +70,24 @@ export function isChoked(plot: PlotState | undefined): boolean {
   return !!plot && plot.weeds >= FARM.care.weedsChoke;
 }
 
+/**
+ * What is on the plant at harvest. A plant that was never stressed ripens evenly; every
+ * slip-up leaves a piece behind; days left standing past ripe send pieces over.
+ */
+export function harvestSpread(plot: PlotState): { ripe: number; under: number; over: number } {
+  const crop = cropOf(plot);
+  if (!crop) return { ripe: 0, under: 0, over: 0 };
+  const items = crop.harvestItems;
+  const under = Math.min(items - 1, plot.neglect);
+  const over = Math.min(items - under - 1, Math.max(0, plot.growth - crop.days));
+  return { ripe: items - under - over, under, over };
+}
+
+/** Wet from a watering or the night's rain: weeds give up their roots more easily. */
+export function soilDamp(state: GameState, plot: PlotState): boolean {
+  return plot.watered || state.farm.rained;
+}
+
 /** Mornings of drought left before this crop dies. */
 export function daysToDeath(plot: PlotState): number {
   return Math.max(0, FARM.care.dieAfterDryDays - plot.dryDays);
@@ -359,7 +377,13 @@ export function advanceDay(
         continue;
       }
 
-      const wasRipe = isRipe(plot);
+      // Standing ripe, a plant is done growing and past needing water: every night it
+      // waits, another piece goes over. Pick it.
+      if (isRipe(plot)) {
+        plot.growth += 1;
+        continue;
+      }
+
       if (isChoked(plot)) {
         // Choked: no growth today, and it costs the crop its prize.
         plot.neglect += 1;
@@ -367,8 +391,8 @@ export function advanceDay(
         plot.growth += 1;
         plot.dryDays = 0;
         report.grown += 1;
-        if (!wasRipe && isRipe(plot)) report.ripened += 1;
-      } else if (!wasRipe) {
+        if (isRipe(plot)) report.ripened += 1;
+      } else {
         plot.dryDays += 1;
         plot.neglect += 1;
         if (plot.dryDays >= care.dieAfterDryDays) {

@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config/keys';
 import { bus, EV } from '../core/EventBus';
+import { Sfx } from '../core/Sfx';
 import { ListMenu } from './ListMenu';
 import { COLORS, drawPanel, makeText } from './Panel';
 
 const W = 300;
-const H = 220;
+const H = 252;
 const X = (GAME_WIDTH - W) / 2;
 const Y = (GAME_HEIGHT - H) / 2 - 20;
 
@@ -29,11 +30,7 @@ export class PauseMenu {
     this.title = makeText(this.scene, X + W / 2, Y + 22, 'Paused', 26).setOrigin(0.5, 0).setDepth(31);
     this.menu = new ListMenu(this.scene, X + 60, Y + 74, 32, 21);
     this.menu.container.setDepth(31);
-    this.menu.setOptions([
-      { label: 'Resume', onSelect: () => this.close() },
-      { label: 'Save Game', onSelect: () => { bus.emit(EV.SAVE_REQUEST); this.close(); } },
-      { label: 'Save & Quit', onSelect: () => { this.close(); bus.emit(EV.QUIT_TO_TITLE); } },
-    ], false);
+    this.refreshOptions();
     this.hint = makeText(this.scene, X + W / 2, Y + H - 22, 'W/S choose · E select · Esc resume', 13, COLORS.inkLight).setOrigin(0.5).setDepth(31);
   }
 
@@ -44,6 +41,15 @@ export class PauseMenu {
     this.title?.destroy();
     this.hint?.destroy();
     this.menu?.destroy();
+  }
+
+  private refreshOptions(): void {
+    this.menu?.setOptions([
+      { label: 'Resume', onSelect: () => this.close() },
+      { label: 'Save Game', onSelect: () => { bus.emit(EV.SAVE_REQUEST); this.close(); } },
+      { label: `Sound: ${Sfx.enabled ? 'On' : 'Off'}`, onSelect: () => { Sfx.enabled = !Sfx.enabled; if (Sfx.enabled) Sfx.play('tick'); this.refreshOptions(); } },
+      { label: 'Save & Quit', onSelect: () => { this.close(); bus.emit(EV.QUIT_TO_TITLE); } },
+    ]);
   }
 
   move(dir: number): void {

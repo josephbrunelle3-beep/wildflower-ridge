@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { TEX } from '../../config/keys';
+import { Sfx } from '../../core/Sfx';
 import { PLANT_X, SOIL_Y, WeedingModel, type Weed } from '../../systems/minigames/WeedingModel';
 import { COLORS, makeText } from '../Panel';
 import type { GameContext, GameInput, GameView, MiniGameSpec } from './MiniGameHost';
@@ -37,9 +38,10 @@ export class WeedingView implements GameView {
     this.plant = ctx.scene.add.image(this.sx(PLANT_X), this.sy(SOIL_Y), TEX.FARM, Math.max(0, spec.stageFrame))
       .setScale(5).setOrigin(0.5, 14 / 16).setDepth(ctx.depth + 1).setVisible(spec.stageFrame >= 0);
     this.tally = makeText(ctx.scene, side.x, side.y + 182, '', 17).setDepth(ctx.depth + 1);
+    const soil = spec.params.damp ? 'The soil is damp, so they will come easily.' : 'The soil is dry and holding on, so get right down at the base.';
     ctx.setInstructions(spec.stageFrame >= 0
-      ? 'Grab each weed where it meets the soil - the dark clump at its foot - and it comes out roots and all.\n\nGrab the stalk and it snaps off short. Grab the crop and you tear a leaf.'
-      : 'Grab each weed where it meets the soil - the dark clump at its foot - and it comes out roots and all.\n\nGrab the stalk and it snaps off short.');
+      ? `Grab each weed where it meets the soil - the dark clump at its foot - and it comes out roots and all. ${soil}\n\nGrab the stalk and it snaps off short. Grab the crop and you tear a leaf.`
+      : `Grab each weed where it meets the soil - the dark clump at its foot - and it comes out roots and all. ${soil}\n\nGrab the stalk and it snaps off short.`);
     ctx.setFeedback('', COLORS.inkLight);
     this.refreshTally();
     this.draw();
@@ -61,13 +63,16 @@ export class WeedingView implements GameView {
         case 'pulled':
           this.flyaways.push({ x: hand.x, y: hand.y, vy: -220, t: 0 });
           this.ctx.setFeedback('Out it comes, roots and all.', '#3d7a2c');
+          Sfx.play('pull');
           break;
         case 'snapped':
           this.ctx.setFeedback('Snapped off - it will grow back. Go for the base.', COLORS.accent);
+          Sfx.play('snap');
           break;
         case 'plant':
           this.shake = 320;
           this.ctx.setFeedback("That's the crop! You tore a leaf.", COLORS.accent);
+          Sfx.play('tear');
           break;
         default:
           this.ctx.setFeedback('Nothing there but soil.', COLORS.inkLight);
@@ -88,8 +93,10 @@ export class WeedingView implements GameView {
   private settle(): void {
     this.finished = true;
     const pulled = this.model.weeds.filter((w) => w.pulled).length;
-    if (this.model.done) this.ctx.setFeedback(this.model.damage > 0 ? 'Clear, but the crop took some tearing.' : 'Clear. The row can breathe.', '#3d7a2c');
-    else this.ctx.setFeedback(`You leave ${this.model.remaining} standing.`, COLORS.inkLight);
+    if (this.model.done) {
+      this.ctx.setFeedback(this.model.damage > 0 ? 'Clear, but the crop took some tearing.' : 'Clear. The row can breathe.', '#3d7a2c');
+      if (this.model.damage === 0) Sfx.play('good');
+    } else this.ctx.setFeedback(`You leave ${this.model.remaining} standing.`, COLORS.inkLight);
     this.spec.onDone({ pulled, remaining: this.model.remaining, damage: this.model.damage });
   }
 

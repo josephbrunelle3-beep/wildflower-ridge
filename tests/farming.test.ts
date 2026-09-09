@@ -4,8 +4,8 @@ import { CROP_BY_ID, FALL, FARM, plotAtTier, SPRING, SUMMER, WINTER } from '../s
 import { createNewGame } from '../src/state/GameState';
 import {
   activePlot, advanceDay, applyHarvest, applyWatering, applyWeeding, buySeeds, canWater, clear, dayReportMessage,
-  daysToDeath, describePlot, expandGarden, growthStage, inGarden, isChoked, isRipe, isWilting, nextTier, plant,
-  plotAt, produceValue, refillBucket, rollRain, seedPacketCost, sellProduce, stageOf, till,
+  daysToDeath, describePlot, expandGarden, growthStage, harvestSpread, inGarden, isChoked, isRipe, isWilting,
+  nextTier, plant, plotAt, produceValue, refillBucket, rollRain, seedPacketCost, sellProduce, soilDamp, stageOf, till,
 } from '../src/systems/FarmingSystem';
 
 const P = FARM.plot;
@@ -386,6 +386,35 @@ describe('FarmingSystem care', () => {
     expect(s.farm.water).toBe(FARM.care.bucketCapacity);
     expect(refillBucket(s).ok).toBe(false);
     expect(water(s, X + 1, Y).ok).toBe(true);
+  });
+
+  it('what is on the plant at harvest is a record of how it was kept', () => {
+    const s = sown();
+    const items = CROP_BY_ID.carrot.harvestItems;
+    grow(s, 'carrot');
+    expect(harvestSpread(plotAt(s, X, Y)!)).toEqual({ ripe: items, under: 0, over: 0 });
+
+    // A slip-up leaves a piece under-ripe; a night left standing past ripe sends one over.
+    plotAt(s, X, Y)!.neglect = 1;
+    expect(harvestSpread(plotAt(s, X, Y)!)).toEqual({ ripe: items - 1, under: 1, over: 0 });
+    night(s);
+    expect(harvestSpread(plotAt(s, X, Y)!)).toEqual({ ripe: items - 2, under: 1, over: 1 });
+    expect(isRipe(plotAt(s, X, Y))).toBe(true);           // still pickable, just less of it
+    // But never nothing: there is always at least one piece worth picking.
+    plotAt(s, X, Y)!.neglect = 99;
+    plotAt(s, X, Y)!.growth = 99;
+    expect(harvestSpread(plotAt(s, X, Y)!).ripe).toBe(1);
+  });
+
+  it('the soil is damp after a watering or a wet night', () => {
+    const s = sown();
+    expect(soilDamp(s, plotAt(s, X, Y)!)).toBe(false);
+    water(s, X, Y);
+    expect(soilDamp(s, plotAt(s, X, Y)!)).toBe(true);
+    advanceDay(s, 1, { rain: true, random: () => 1 });
+    expect(soilDamp(s, plotAt(s, X, Y)!)).toBe(true);
+    advanceDay(s, 1, { rain: false, random: () => 1 });
+    expect(soilDamp(s, plotAt(s, X, Y)!)).toBe(false);
   });
 
   it('rolls rain by season', () => {
