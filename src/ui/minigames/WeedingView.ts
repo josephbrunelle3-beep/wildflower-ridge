@@ -38,7 +38,7 @@ export class WeedingView implements GameView {
     // Bare soil has no crop in the close-up: the weeds are the whole picture.
     this.plant = ctx.scene.add.image(this.sx(PLANT_X), this.sy(SOIL_Y), TEX.FARM, Math.max(0, spec.stageFrame))
       .setScale(5).setOrigin(0.5, PLANT_BASE / FARM_FRAME_H).setDepth(ctx.depth + 1).setVisible(spec.stageFrame >= 0);
-    this.tally = makeText(ctx.scene, side.x, side.y + 182, '', 17).setDepth(ctx.depth + 1);
+    this.tally = makeText(ctx.scene, side.x, side.y + 200, '', 17).setDepth(ctx.depth + 1);
     const soil = spec.params.damp ? 'The soil is damp, so they will come easily.' : 'The soil is dry and holding on, so get right down at the base.';
     ctx.setInstructions(spec.stageFrame >= 0
       ? `Grab each weed where it meets the soil - the dark clump at its foot - and it comes out roots and all. ${soil}\n\nGrab the stalk and it snaps off short. Grab the crop and you tear a leaf.`

@@ -43,7 +43,7 @@ export class HarvestView implements GameView {
       .setScale(5).setOrigin(0.5, PLANT_BASE / FARM_FRAME_H).setDepth(ctx.depth + 1);
     // The close-up shows the pieces themselves, so the sprite's own fruit would double up.
     this.plant.setAlpha(0.55);
-    this.tally = makeText(ctx.scene, side.x, side.y + 182, '', 17).setDepth(ctx.depth + 1);
+    this.tally = makeText(ctx.scene, side.x, side.y + 200, '', 17).setDepth(ctx.depth + 1);
     const where = spec.crop.fruitAt === 'top' ? 'on the plant' : 'showing along the row';
     ctx.setInstructions(`Look over what is ${where}. Full colour and plump is ready; green at the shoulder is not; dull and spotted has gone over.\n\nHold on a ready one and pull steady - let go as it comes free. Yank and it snaps; grab green and it bruises. Leave the rest ${spec.crop.fruitAt === 'top' ? 'on the plant' : 'in the ground'}.`);
     ctx.setFeedback(spec.params.ripe === 0 ? 'Nothing here is ready.' : '', COLORS.inkLight);
