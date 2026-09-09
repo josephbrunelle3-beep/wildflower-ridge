@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import type { CropDef } from '../../config/crops';
 import { GAME_HEIGHT, GAME_WIDTH, TEX } from '../../config/keys';
-import { FARM_FRAME } from '../../gfx/CropTextures';
+import { FARM_FRAME, FARM_FRAME_H } from '../../gfx/CropTextures';
 import type { HarvestParams, WateringParams, WeedingParams } from '../../systems/minigames/tuning';
 import type { WateringVerdict } from '../../systems/minigames/WateringModel';
 import { COLORS, drawPanel, makeText } from '../Panel';
@@ -106,7 +106,7 @@ export class MiniGameHost {
     this.feedback = makeText(this.scene, X + 20, Y + H - 54, '', 17, COLORS.accent).setDepth(DEPTH + 1);
     this.hint = makeText(this.scene, X + W / 2, Y + H - 22, 'Move the hand with the mouse or arrows · E / click to grab · Esc to stop', 13, COLORS.inkLight).setOrigin(0.5).setDepth(DEPTH + 1);
 
-    this.hand = this.scene.add.image(0, 0, TEX.FARM, FARM_FRAME.HAND).setScale(3).setOrigin(3 / 16, 1 / 16).setDepth(DEPTH + 5);
+    this.hand = this.scene.add.image(0, 0, TEX.FARM, FARM_FRAME.HAND).setScale(3).setOrigin(3 / 16, (FARM_FRAME_H - 16 + 1) / FARM_FRAME_H).setDepth(DEPTH + 5);
     this.moveHand(field.x + field.size / 2, field.y + field.size * 0.6);
 
     this.scene.input.on('pointermove', this.onPointerMove);
@@ -159,10 +159,15 @@ export class MiniGameHost {
       cancelJust: keys.cancelJust,
     };
     this.pointerJust = false;
-    this.view.update(dt, input, this.handPos);
+    const view = this.view;
+    view.update(dt, input, this.handPos);
+    // A game can close the host from inside its own update (Esc with nothing to keep);
+    // after that there is no view to ask about, and touching it would throw and take the
+    // whole game loop down with it.
+    if (this.view !== view) return;
 
     // Give the last outcome a beat to land before the popup goes.
-    if (this.view.finished) {
+    if (view.finished) {
       this.closing += dt;
       if (this.closing > 700) this.close();
     }

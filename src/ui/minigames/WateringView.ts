@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { TEX } from '../../config/keys';
+import { FARM_FRAME_H, PLANT_BASE } from '../../gfx/CropTextures';
 import { Sfx } from '../../core/Sfx';
 import { WateringModel } from '../../systems/minigames/WateringModel';
 import { COLORS, makeText } from '../Panel';
@@ -38,7 +39,7 @@ export class WateringView implements GameView {
     this.g = ctx.scene.add.graphics().setDepth(ctx.depth);
     this.bucket = ctx.scene.add.graphics().setDepth(ctx.depth + 2);
     this.plant = ctx.scene.add.image(field.x + field.size / 2, field.y + field.size * SURFACE, TEX.FARM, spec.stageFrame)
-      .setScale(5).setOrigin(0.5, 14 / 16).setDepth(ctx.depth + 1);
+      .setScale(5).setOrigin(0.5, PLANT_BASE / FARM_FRAME_H).setDepth(ctx.depth + 1);
     this.depthLabel = makeText(ctx.scene, field.x + field.size - 6, field.y + field.size * SURFACE + 4, '', 12, '#fff0c0').setOrigin(1, 0).setDepth(ctx.depth + 3);
     const depth = spec.params.rootDepth;
     const how = depth < 0.35 ? 'shallow' : depth < 0.55 ? 'middling' : 'deep';

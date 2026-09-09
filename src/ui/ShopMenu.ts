@@ -96,7 +96,7 @@ export class ShopMenu {
 
     const rows = spec.rows.length;
     const lines = spec.lines ?? [];
-    const portraitH = spec.portrait ? 84 : 0;
+    const portraitH = spec.portrait ? 104 : 0;
     const headH = Math.max((spec.subtitle ? 74 : 54) + lines.length * 22, portraitH + 22);
     const h = headH + rows * 28 + 34;
     const y = Math.max(20, (GAME_HEIGHT - h) / 2 - 20);
@@ -125,7 +125,7 @@ export class ShopMenu {
       const py = y + 18 + portraitH / 2;
       // A soil-coloured plinth under the sprite so the close-up reads as ground, not a sticker.
       this.g.fillStyle(0x8a6038);
-      this.g.fillRoundedRect(px - 38, py - 38, 76, 76, 6);
+      this.g.fillRoundedRect(px - 40, py - 52, 80, 104, 6);
       this.portrait = this.scene.add.image(px, py, spec.portrait.texture, spec.portrait.frame).setScale(4).setDepth(31);
       if (spec.portrait.tint !== undefined) this.portrait.setTint(spec.portrait.tint);
       if (spec.portrait.overlay !== undefined) {

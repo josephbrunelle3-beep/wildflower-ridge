@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { TEX } from '../../config/keys';
+import { FARM_FRAME_H, PLANT_BASE } from '../../gfx/CropTextures';
 import { Sfx } from '../../core/Sfx';
 import { PLANT_X, SOIL_Y, WeedingModel, type Weed } from '../../systems/minigames/WeedingModel';
 import { COLORS, makeText } from '../Panel';
@@ -36,7 +37,7 @@ export class WeedingView implements GameView {
     this.g = ctx.scene.add.graphics().setDepth(ctx.depth);
     // Bare soil has no crop in the close-up: the weeds are the whole picture.
     this.plant = ctx.scene.add.image(this.sx(PLANT_X), this.sy(SOIL_Y), TEX.FARM, Math.max(0, spec.stageFrame))
-      .setScale(5).setOrigin(0.5, 14 / 16).setDepth(ctx.depth + 1).setVisible(spec.stageFrame >= 0);
+      .setScale(5).setOrigin(0.5, PLANT_BASE / FARM_FRAME_H).setDepth(ctx.depth + 1).setVisible(spec.stageFrame >= 0);
     this.tally = makeText(ctx.scene, side.x, side.y + 182, '', 17).setDepth(ctx.depth + 1);
     const soil = spec.params.damp ? 'The soil is damp, so they will come easily.' : 'The soil is dry and holding on, so get right down at the base.';
     ctx.setInstructions(spec.stageFrame >= 0

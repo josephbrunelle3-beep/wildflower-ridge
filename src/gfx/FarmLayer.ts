@@ -12,7 +12,7 @@ import {
   produceCount, produceValue, refillBucket, seedPacketCost, sellProduce, soilDamp, stageOf, till, type FarmResult,
 } from '../systems/FarmingSystem';
 import { harvestParams, wateringParams, weedingParams } from '../systems/minigames/tuning';
-import { FARM_FRAME, cropFrame, generateFarmTextures, weedFrame } from './CropTextures';
+import { FARM_FRAME, FARM_FRAME_H, cropFrame, generateFarmTextures, weedFrame } from './CropTextures';
 import { buildFarmYard } from './FarmYard';
 import type { MiniGameSpec } from '../ui/minigames/MiniGameHost';
 import type { ShopRow, ShopSpec } from '../ui/ShopMenu';
@@ -151,8 +151,10 @@ export class FarmLayer {
     const decorTile = this.decor.getTileAt(tx, ty);
     if (decorTile && decorTile.index - 1 === TILE.FLOWERS) this.decor.removeTileAt(tx, ty);
 
+    // Frames are a tile and a half tall and stand on the tile's bottom edge, so a grown
+    // crop rises over the square behind it.
     const x = tx * TILE_SIZE + TILE_SIZE / 2;
-    const y = ty * TILE_SIZE + TILE_SIZE / 2;
+    const y = (ty + 1) * TILE_SIZE;
     this.setImage(this.soil, key, x, y, plotState.watered ? FARM_FRAME.SOIL_WET : FARM_FRAME.SOIL_DRY, SOIL_DEPTH);
 
     const plantFrame = plotState.withered
@@ -189,7 +191,7 @@ export class FarmLayer {
       existing.setFrame(frame);
       return existing;
     }
-    const image = this.scene.add.image(x, y, TEX.FARM, frame).setDepth(depth);
+    const image = this.scene.add.image(x, y, TEX.FARM, frame).setOrigin(0.5, 1).setDepth(depth);
     store.set(key, image);
     return image;
   }
@@ -209,13 +211,13 @@ export class FarmLayer {
     def: { prompt: () => string | null; interact: () => void },
   ): void {
     const x = tx * TILE_SIZE + TILE_SIZE / 2;
-    const y = ty * TILE_SIZE + TILE_SIZE / 2;
+    const y = (ty + 1) * TILE_SIZE;
     const image = this.solids.create(x, y, TEX.FARM, frame) as Phaser.Physics.Arcade.Sprite;
-    image.setDepth(100 + y);
+    image.setOrigin(0.5, 1).setDepth(100 + y);
     const body = image.body as Phaser.Physics.Arcade.StaticBody;
-    body.setSize(14, 10).setOffset(1, 5);
+    body.setSize(14, 10).setOffset(1, FARM_FRAME_H - 11);
     body.updateFromGameObject();
-    interactions.add({ x, y, radius: 20, ...def });
+    interactions.add({ x, y: y - TILE_SIZE / 2, radius: 20, ...def });
   }
 
   // --- Interaction -----------------------------------------------------------
@@ -295,9 +297,11 @@ export class FarmLayer {
       const fussy = ['easy going', 'particular', 'fussy'][crop.difficulty - 1];
       const rows: ShopRow[] = [];
 
+      // The detail column is narrow: a word or two on why, not the whole sentence.
+      const waterWhy = plotState.watered ? 'watered today' : ripe ? 'not needed' : state.farm.water <= 0 ? 'bucket empty' : water.message;
       rows.push({
         label: 'Water',
-        detail: water.ok ? `bucket ${state.farm.water}/${FARM.care.bucketCapacity}` : water.message,
+        detail: water.ok ? `bucket ${state.farm.water}/${FARM.care.bucketCapacity}` : waterWhy,
         disabled: !water.ok,
         onSelect: () => {
           this.openWatering(tx, ty);
@@ -318,7 +322,7 @@ export class FarmLayer {
         const spread = harvestSpread(plotState);
         rows.push({
           label: 'Harvest',
-          detail: `${spread.ripe} of ${crop.harvestItems} ready${plotState.neglect === 0 ? '  ·  prize if clean' : ''}`,
+          detail: `${spread.ripe} of ${crop.harvestItems} ready`,
           onSelect: () => {
             this.openHarvest(tx, ty);
             return false;
@@ -329,7 +333,8 @@ export class FarmLayer {
 
       const lines = [describePlot(plotState)];
       if (plotState.neglect === 0 && !ripe) lines.push('No slip-ups so far - prize crop if it stays that way');
-      else if (plotState.neglect > 0) lines.push(`${plotState.neglect} ${plotState.neglect === 1 ? 'slip-up' : 'slip-ups'} - no prize this time`);
+      else if (plotState.neglect === 0) lines.push('Kept clean - a prize crop if every piece comes off right');
+      else lines.push(`${plotState.neglect} ${plotState.neglect === 1 ? 'slip-up' : 'slip-ups'} - no prize this time`);
 
       return {
         title: crop.name,

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { TEX } from '../../config/keys';
+import { FARM_FRAME_H, PLANT_BASE } from '../../gfx/CropTextures';
 import { Sfx } from '../../core/Sfx';
 import { HarvestModel, type Piece } from '../../systems/minigames/HarvestModel';
 import { COLORS, makeText } from '../Panel';
@@ -39,7 +40,7 @@ export class HarvestView implements GameView {
     const { field, side } = ctx;
     this.g = ctx.scene.add.graphics().setDepth(ctx.depth);
     this.plant = ctx.scene.add.image(field.x + field.size / 2, field.y + field.size * 0.78, TEX.FARM, spec.stageFrame)
-      .setScale(5).setOrigin(0.5, 14 / 16).setDepth(ctx.depth + 1);
+      .setScale(5).setOrigin(0.5, PLANT_BASE / FARM_FRAME_H).setDepth(ctx.depth + 1);
     // The close-up shows the pieces themselves, so the sprite's own fruit would double up.
     this.plant.setAlpha(0.55);
     this.tally = makeText(ctx.scene, side.x, side.y + 182, '', 17).setDepth(ctx.depth + 1);
@@ -194,10 +195,6 @@ export class HarvestView implements GameView {
     const r = p.ripeness === 'ripe' ? base * 1.08 : base * 0.92;
     const sub = this.spec.params.subtlety;
 
-    // Stem.
-    g.lineStyle(3, 0x3d6b2c);
-    g.lineBetween(x, y - r, x + 3, y - r - 10 - lift);
-
     // Body colour by ripeness. Under-ripe is most of the way there - that is the judgement.
     let fill: number;
     if (p.ripeness === 'over') {
@@ -209,10 +206,72 @@ export class HarvestView implements GameView {
     } else {
       fill = this.ripe.color;
     }
-    g.fillStyle(fill);
-    g.fillCircle(x, y, r);
-    g.fillStyle(p.ripeness === 'ripe' ? this.ripeDark : 0x000000, p.ripeness === 'ripe' ? 0.9 : 0.25);
-    g.fillEllipse(x, y + r * 0.45, r * 1.3, r * 0.6);
+    const dark = p.ripeness === 'ripe' ? this.ripeDark : 0x000000;
+    const darkA = p.ripeness === 'ripe' ? 0.9 : 0.25;
+    const leaf = 0x3d6b2c;
+
+    switch (this.spec.crop.piece) {
+      case 'root': {
+        // A carrot: the shoulders above the soil, the taper below, the tuft of tops.
+        g.lineStyle(3, leaf);
+        for (const dx of [-6, 0, 6]) g.lineBetween(x, y - r * 0.6, x + dx, y - r * 0.6 - 18 - lift);
+        g.fillStyle(fill);
+        g.fillTriangle(x - r, y - r * 0.5, x + r, y - r * 0.5, x, y + r * 2.2);
+        g.fillEllipse(x, y - r * 0.5, r * 2, r * 1.1);
+        g.fillStyle(dark, darkA);
+        for (let i = 0; i < 3; i++) g.fillRect(x - r * (0.8 - i * 0.25), y + i * r * 0.6, r * (1.6 - i * 0.5), 2);
+        break;
+      }
+      case 'ear': {
+        // Corn: a husk with the kernels showing through the split, silk at the tip.
+        g.fillStyle(leaf);
+        g.fillRoundedRect(x - r * 0.9, y - r * 1.6, r * 1.8, r * 3.2, r * 0.6);
+        g.fillStyle(fill);
+        g.fillRoundedRect(x - r * 0.45, y - r * 1.2, r * 0.9, r * 2.4, r * 0.3);
+        g.fillStyle(dark, darkA);
+        for (let i = 0; i < 4; i++) g.fillRect(x - r * 0.45, y - r * 1.0 + i * r * 0.55, r * 0.9, 2);
+        g.lineStyle(2, 0xd8b070);
+        g.lineBetween(x, y - r * 1.6, x + 4, y - r * 2.2);
+        g.lineBetween(x, y - r * 1.6, x - 3, y - r * 2.1);
+        break;
+      }
+      case 'bloom': {
+        // Sweet peas: a spray of three blossoms on a stem; buds stay green, spent ones brown.
+        g.lineStyle(2, leaf);
+        g.lineBetween(x, y + r, x, y + r + 14);
+        for (const [dx, dy, k] of [[-r * 0.7, 0, 1], [r * 0.7, -r * 0.2, 1], [0, -r * 0.8, 0.9]]) {
+          g.fillStyle(fill);
+          g.fillEllipse(x + dx, y + dy, r * 1.2 * k, r * 1.5 * k);
+          g.fillStyle(dark, darkA);
+          g.fillEllipse(x + dx, y + dy + r * 0.3, r * 0.5, r * 0.5);
+        }
+        break;
+      }
+      case 'sheaf': {
+        // Timothy: a bottle-brush seed head on its stem, green until it dries to gold.
+        g.lineStyle(2, leaf);
+        g.lineBetween(x, y + r, x, y + r + 16);
+        g.fillStyle(fill);
+        g.fillRoundedRect(x - r * 0.45, y - r * 1.8, r * 0.9, r * 2.8, r * 0.4);
+        g.fillStyle(dark, darkA);
+        for (let i = 0; i < 5; i++) g.fillRect(x - r * 0.45, y - r * 1.6 + i * r * 0.55, r * 0.9, 1);
+        break;
+      }
+      default: {
+        // Round fruit: a tomato or a pumpkin, with a calyx or a curl of stem on top.
+        g.lineStyle(3, leaf);
+        g.lineBetween(x, y - r, x + 3, y - r - 10 - lift);
+        g.fillStyle(fill);
+        g.fillCircle(x, y, r);
+        g.fillStyle(dark, darkA);
+        g.fillEllipse(x, y + r * 0.45, r * 1.3, r * 0.6);
+        if (this.spec.crop.id === 'pumpkin') {
+          g.lineStyle(2, dark, darkA);
+          for (const dx of [-0.5, 0, 0.5]) g.lineBetween(x + dx * r, y - r * 0.9, x + dx * r * 0.8, y + r * 0.9);
+        }
+      }
+    }
+
     // Under-ripe keeps green at the shoulder; over-ripe carries spots.
     if (p.ripeness === 'under') {
       g.fillStyle(GREEN.color, 0.9);

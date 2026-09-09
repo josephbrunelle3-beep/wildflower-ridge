@@ -139,3 +139,10 @@ tests/                   Vitest specs for the systems
 real sheet under the same texture key in `BootScene.preload` and the placeholder for that key
 is skipped. Tile order for the tileset is in `src/config/tiles.ts`. See `CREDITS.md` for the
 packs planned and their licences.
+
+The garden has its own sheet, `src/gfx/CropTextures.ts`: soil, four growth stages per crop,
+weeds at three sizes, the crates and the pump. Its frames are a tile wide but a tile and a
+half tall (16 × 24) and stand on the tile's bottom edge, so a grown corn stalk rises over the
+square behind it; the soil line inside a frame is `PLANT_BASE`. Each crop has its own
+drawing routine keyed by id, so a new crop only needs a palette to get a plain stalk, and a
+routine to get a silhouette of its own.
